@@ -1,0 +1,24 @@
+# Ignore Django-related files and directories
+*.pyc
+__pycache__/
+*.sqlite3
+*.py[cod]
+server/settings.py
+# Ignore development server
+.env
+
+# Ignore IDE and text editor specific files
+.vscode/
+.idea/
+*.sublime-*
+*.swp
+
+# Ignore static files (if using collectstatic)
+/static/
+
+# Ignore media files (if using media files)
+/media/
+migrations/
+*.pyc      
+.DS_Store
+server/settings.py
