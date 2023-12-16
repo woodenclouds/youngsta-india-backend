@@ -42,23 +42,18 @@ class UserProfile(BaseModel):
     phone_number = models.CharField(max_length=15) 
     password = models.TextField(blank=True, null=True)
     user = models.OneToOneField("auth.User", on_delete=models.CASCADE)
+    is_verified = models.BooleanField(default=False)
     device_token = models.TextField(blank=True)
 
     def save(self, *args, **kwargs):
         is_new = not self.pk  # Check if the instance is new
 
-        super(AdminProfile, self).save(*args, **kwargs)
+        super(UserProfile, self).save(*args, **kwargs)  # Call the parent's save method using UserProfile
 
         if is_new:  # If the instance is new
-            admin_group, _ = Group.objects.get_or_create(name='users')  # Fetch or create the 'admin' group
-            self.user.groups.add(admin_group)  # Add the user to the 'admin' group
+            admin_group, _ = Group.objects.get_or_create(name='users')  # Fetch or create the 'users' group
+            self.user.groups.add(admin_group)  # Add the user to the 'users' group
             self.user.save()
-
-    class Meta:
-        db_table = "accounts_admin_profile"
-        verbose_name = "Admin Profile"
-        verbose_name_plural = "Admin Profiles"
-        ordering = ('created_at',)
 
     class Meta:
         db_table = "accounts_user_profile"

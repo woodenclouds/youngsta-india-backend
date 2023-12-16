@@ -1,6 +1,6 @@
 from django.db import models
 from main.models import *
-from colorfield.fields import ColorField
+# from colorfield.fields import ColorField
 
 # Create your models here.
 class Category(BaseModel):
@@ -64,7 +64,7 @@ class Product(BaseModel):
 
 class ProductItem(BaseModel):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="product")
-    color = ColorField(default='#FFFFFF')
+    color = models.CharField(max_length = 8,blank =True,null=True)
     size = models.CharField(max_length=30, blank=False)
     quantity = models.PositiveIntegerField(default=1,blank=True,null=True)
 

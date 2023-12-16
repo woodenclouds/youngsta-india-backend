@@ -3,7 +3,7 @@
 __pycache__/
 *.sqlite3
 *.py[cod]
-server/settings.py
+# server/settings.py
 # Ignore development server
 .env
 
@@ -21,4 +21,4 @@ server/settings.py
 migrations/
 *.pyc      
 .DS_Store
-server/settings.py
+# server/settings.py
