@@ -9,6 +9,8 @@ from django.contrib.auth.models import Group
 from rest_framework.exceptions import PermissionDenied
 from firebase_admin import messaging,credentials
 import firebase_admin
+import secrets
+import string
 
 
 def generate_serializer_errors(args):
@@ -82,3 +84,8 @@ def get_first_letters(string):
 #     message_res = messaging.send_multicast(
 #             multicast_message)
 #     return message_res
+
+def createsix():
+    characters = string.ascii_uppercase + string.digits
+    random_id = ''.join(secrets.choice(characters) for _ in range(4))
+    return random_id

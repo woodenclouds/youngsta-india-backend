@@ -1,7 +1,8 @@
 from rest_framework.permissions import BasePermission
 from django.http.response import HttpResponseRedirect, HttpResponse
 import json
-
+from rest_framework.response import Response
+from rest_framework import status
 
 
 def group_required(group_names):
@@ -21,7 +22,13 @@ def group_required(group_names):
                         context = {
                             'title': 'Permission Denied',
                         }
-                        return HttpResponse('<h1>Permission Denied</h1>')
+                        response_data  = {
+                            "StatusCode":6001,
+                            "data":{
+                                "message":"you dont have access to this api"
+                            }
+                        }
+                        return Response({'app_data': response_data}, status=status.HTTP_200_OK)
             return view_method(request, *args, **kwargs)
 
         return _arguments_wrapper

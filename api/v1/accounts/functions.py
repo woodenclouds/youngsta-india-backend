@@ -4,6 +4,7 @@ from email.mime.text import MIMEText
 import environ
 import os
 from pathlib import Path
+from django.contrib.auth.models import User, Group
 
 env = environ.Env()
 
@@ -29,3 +30,19 @@ def send_otp_email(email,otp):
     except Exception as e:
         print(f"Failed to send email. Error: {e}")
         return None
+    
+
+def add_user_to_group(username, group_name):
+    try:
+        user = User.objects.get(username=username)
+        group, created = Group.objects.get_or_create(name=group_name)
+
+        if created:
+            print(f"Group '{group_name}' created successfully.")
+
+        user.groups.add(group)
+        print(f"User '{username}' added to group '{group_name}' successfully.")
+    except User.DoesNotExist:
+        print(f"User '{username}' does not exist.")
+    except Exception as e:
+        print(f"An error occurred: {e}")

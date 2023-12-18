@@ -10,4 +10,9 @@ urlpatterns = [
     re_path(r'^signup/$', views.signup, name="signup"),
     re_path(r'^verify/$', views.verify, name="verify"),
     re_path(r'^login/$', views.login, name="login"),
+
+    # -------------admin---------------------
+    re_path(r'^admin/signup/$', views.admin_signup, name="admin_signup"),
+    re_path(r'^admin/login/$', views.admin_login, name="admin_login"),
+
 ]

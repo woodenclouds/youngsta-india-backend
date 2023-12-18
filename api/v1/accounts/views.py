@@ -231,3 +231,122 @@ def login(request):
             "response": errors
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes((AllowAny,))
+def admin_signup(request):
+    try:
+        transaction.set_autocommit(False)
+        serializer = SignupSerializers(data=request.data)
+        if serializer.is_valid():
+            name = request.data["name"]
+            email = request.data["email"]
+            password = request.data["password"]
+            if not User.objects.filter(username=email).exists():
+                user = User.objects.create_user(
+                        username=email,
+                        password=password
+                )
+                enc_password = encrypt(password)
+                admin_profile = AdminProfile.objects.create(
+                    user=user,
+                    name=name,
+                    email = email,
+                    password = enc_password
+                )
+                transaction.commit()
+                user = authenticate(request, username=email, password=password)
+                add_user_to_group(email,'admin')
+                refresh = RefreshToken.for_user(user)
+                access = str(refresh.access_token)
+                response_data = {
+                    "StatusCode":6000,
+                    "data":{
+                        "message":"success",
+                        "access":access,
+                        "refresh":str(refresh)
+                    }
+                }
+            else:
+                response_data={
+                    "StatusCode":6001,
+                    "data":{
+                        "message":"user exist with this email id"
+                    }
+                }
+        else:
+            response_data = {
+                    "StatusCode": 6001,
+                    "data": generate_serializer_errors(serializer._errors)
+                }
+    except Exception as e:
+        transaction.rollback()
+        errType = e.__class__.__name__
+        errors = {
+            errType: traceback.format_exc()
+        }
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes((AllowAny,))
+def admin_login(request):
+    try:
+        serializer = LoginSerializers(data=request.data)
+        if serializer.is_valid():
+            email = request.data["email"]
+            password = request.data['password']
+            user = authenticate(request, username=email, password=password)
+            if user is not None and user.is_active:
+                print(user.username,"__________")
+                refresh = RefreshToken.for_user(user)
+                access = str(refresh.access_token)
+                if AdminProfile.objects.filter(user=user).exists():
+                    profile = AdminProfile.objects.get(user=user)
+                    response_data = {
+                        "StatusCode": 6000,
+                        "data": {
+                            "name": profile.name,
+                            "email": profile.email,
+                            "access": access,
+                            "refresh": str(refresh)
+                        }
+                    }
+                else:
+                    response_data = {
+                        "StatusCode": 6001,
+                        "data": {
+                            "message": "user is not admin"
+                        }
+                    }
+            else:
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": {
+                        "message": "incorrect password or user is inactive"
+                    }
+                }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": serializer.errors
+            }
+    except Exception as e:
+        print("helloworld")
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+        return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
