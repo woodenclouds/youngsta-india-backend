@@ -1,5 +1,7 @@
 from django.db import models
 from main.models import *
+from django.db.models import Max, Value
+
 # from colorfield.fields import ColorField
 
 # Create your models here.
@@ -14,6 +16,7 @@ class Category(BaseModel):
     image = models.ImageField(upload_to='product/category/', blank=True, null=True)
     cat_id = models.CharField(max_length=6, blank=True, null=True)
     published = models.BooleanField(default=False)
+    
 
     class Meta:
         db_table = 'product_category'
@@ -29,6 +32,8 @@ class SubCategory(BaseModel):
     name = models.CharField(max_length=150,blank=True,null=True)
     description = models.TextField()
     published = models.BooleanField(default=False)
+    order = models.IntegerField(default=0, blank=True,null=True)
+    parent = models.ForeignKey('self',on_delete=models.CASCADE, blank=True,null=True)
     class Meta:
         db_table = "product_subcategory"
         managed = True
@@ -37,6 +42,14 @@ class SubCategory(BaseModel):
 
     def __str__(self):
         return f"{self.name}-{self.category.name}"
+    
+    def save(self, *args, **kwargs):
+        if self.parent:
+            self.order = self.parent.order + 1 
+        else:
+            self.order = 0
+        
+        super().save(*args, **kwargs)
 
 
 class Company(BaseModel):
@@ -88,7 +101,7 @@ class ProductItem(BaseModel):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="product")
     color = models.CharField(max_length = 8,blank =True,null=True)
     stock = models.PositiveIntegerField(default=0, blank=True,null=True)
-    size = models.CharField(max_length=30, blank=False)
+    size = models.IntegerField(max_length=30, blank=False)
     quantity = models.PositiveIntegerField(default=1,blank=True,null=True)
     published = models.BooleanField(default=False)
 

@@ -33,7 +33,7 @@ class AdminProfile(BaseModel):
             return self.name
         else:
             return self.phone
-        
+
 
 class UserProfile(BaseModel):
     name = models.CharField(max_length=155, blank=True, null=True)
@@ -66,7 +66,24 @@ class UserProfile(BaseModel):
             return self.name
         else:
             return self.phone
-        
+
+
+class Address(models.Model):
+    street = models.CharField(max_length=100)
+    city = models.CharField(max_length=50)
+    state = models.CharField(max_length=50)
+    postal_code = models.CharField(max_length=20)
+    country = models.CharField(max_length=50)
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, blank=True,null=True)
+    primary = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = 'Address'
+        verbose_name_plural = 'Addresses'
+
+    def __str__(self):
+        return f"{self.street}, {self.city}, {self.state} {self.postal_code}, {self.country}"
+
 class Cart(models.Model):
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
     total_amount = models.PositiveBigIntegerField(max_length=100,blank=True,null=True)
