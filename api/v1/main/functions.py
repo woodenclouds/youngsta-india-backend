@@ -7,8 +7,8 @@ import json
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import Group
 from rest_framework.exceptions import PermissionDenied
-from firebase_admin import messaging,credentials
-import firebase_admin
+# from firebase_admin import messaging,credentials
+# import firebase_admin
 import secrets
 import string
 
@@ -86,6 +86,11 @@ def get_first_letters(string):
 #     return message_res
 
 def createsix():
+    characters = string.ascii_uppercase + string.digits
+    random_id = ''.join(secrets.choice(characters) for _ in range(4))
+    return random_id
+
+def create_slug():
     characters = string.ascii_uppercase + string.digits
     random_id = ''.join(secrets.choice(characters) for _ in range(4))
     return random_id

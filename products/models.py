@@ -1,6 +1,8 @@
 from django.db import models
 from main.models import *
 from django.db.models import Max, Value
+from django.utils.text import slugify
+import random
 
 # from colorfield.fields import ColorField
 
@@ -10,13 +12,14 @@ PRODUCT_STATUS = (
     ('damged','damaged'),
     ('selling','selling'),
 )
-class Category(BaseModel):
+
+
+class Category(SlugModel):
     name = models.CharField(max_length=30)
     description = models.TextField()
-    image = models.ImageField(upload_to='product/category/', blank=True, null=True)
+    image = models.TextField()
     cat_id = models.CharField(max_length=6, blank=True, null=True)
     published = models.BooleanField(default=False)
-    
 
     class Meta:
         db_table = 'product_category'
@@ -26,8 +29,28 @@ class Category(BaseModel):
 
     def __str__(self):
         return self.name
-    
-class SubCategory(BaseModel):
+
+    def get_unique_slug(self, base_slug):
+        slug = base_slug
+
+        # Check if the slug already exists
+        while Category.objects.filter(slug=slug).exists():
+            # Append a random number to the slug
+            slug = f"{base_slug}-{random.randint(1, 999)}"
+
+        return slug
+
+    def save(self, *args, **kwargs):
+        # Generate the base slug from the name with spaces replaced by hyphens
+        base_slug = slugify(self.name)
+
+        # Add a random number if the slug already exists
+        self.slug = self.get_unique_slug(base_slug)
+
+        super().save(*args, **kwargs)
+
+
+class SubCategory(SlugModel):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, related_name="category",null=True)
     name = models.CharField(max_length=150,blank=True,null=True)
     description = models.TextField()
@@ -52,16 +75,16 @@ class SubCategory(BaseModel):
         super().save(*args, **kwargs)
 
 
-class Company(BaseModel):
+class Brand(BaseModel):
     name = models.CharField(max_length=255,blank=True,null=True)
     description = models.TextField()
-    image = models.ImageField(upload_to='product/product/', blank=True, null=True)
+    image = models.TextField()
 
     class Meta:
-        db_table = 'product_company'
+        db_table = 'product_brand'
         managed = True
-        verbose_name = 'Company'
-        verbose_name_plural = 'Companies'
+        verbose_name = 'Brand'
+        verbose_name_plural = 'Brands'
 
     def __str__(self):
         return self.name
@@ -82,7 +105,7 @@ class Product(BaseModel):
     description = models.TextField()
     price = models.DecimalField(max_digits=8, decimal_places=2)
     offers = models.PositiveIntegerField(max_length=100,blank=True,null=True)
-    company = models.ForeignKey(Company,on_delete=models.CASCADE,null=True,blank=True,related_name="company")
+    brand = models.ForeignKey(Brand,on_delete=models.CASCADE,null=True,blank=True,related_name="company")
     subcategory = models.ForeignKey(SubCategory,on_delete= models.CASCADE, related_name="sub_categories", blank=True)
     specs = models.TextField(blank=True, null=True)
     status = models.CharField(choices=PRODUCT_STATUS,default='stocking',blank=True,null=True)

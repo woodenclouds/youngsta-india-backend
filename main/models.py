@@ -14,6 +14,17 @@ class BaseModel(models.Model):
     class Meta:
         abstract = True
 
+class SlugModel(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    slug = models.CharField(unique=True, max_length=100)
+    is_deleted = models.BooleanField(default=False, blank=True, null=True)
+    created_at = models.DateTimeField( db_index=True, auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        abstract = True
+
+
 
 class Otp(BaseModel):
     otp = models.CharField(max_length=6)

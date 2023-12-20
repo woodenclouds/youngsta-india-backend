@@ -114,7 +114,80 @@ def categories(request):
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
+@api_view(["PUT", "PATCH"])
+@group_required(["admin"])
+def editCategory(request, pk):
+    try:
+        # Get the existing category instance
+        category = Category.objects.get(id=pk)
+        # Deserialize the request data
+        serializer = EditCategorySerializer(category, data=request.data, partial=True)
+        if serializer.is_valid():
+            name = request.data.get("name")
+            description = request.data.get("description")
+            image = request.data.get("image")
+            category.name = name
+            category.description = description
+            category.image = image
+            serializer.save()
+            response_data = {
+                "StatusCode": 6000,
+                "data": serializer.data,
+                "message": "Category updated successfully"
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": generate_serializer_errors(serializer.errors)
+            }
+    except Category.DoesNotExist:
+        response_data = {
+            "StatusCode": 6002,
+            "data": {"message": "Category not found"}
+        }
+    except Exception as e:
+        errType = e.__class__.__name__
+        errors = {
+            errType: traceback.format_exc()
+        }
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
+@api_view(["DELETE"])
+@group_required(["admin"])
+def deleteCategory(request, pk):
+    try:
+        category = Category.objects.get(pk=pk)
+        category.delete()
+        response_data = {
+            "StatusCode": 6000,
+            "data" : {
+                "message" : f"{category.name} deleted Successfully"
+            }
+        }
+    except Category.DoesNotExist:
+        response_data = {
+            "StatusCode": 6001,
+            "data": {"message": "Category not found"}
+        }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": {"error": "An error occurred while deleting the category"}
+        }
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+        
 
 @api_view(["POST"])
 @group_required(["admin"])

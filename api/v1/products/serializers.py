@@ -5,7 +5,7 @@ from django.db.models import Sum
 class AddCategorySerializers(serializers.Serializer):
     name = serializers.CharField()
     description = serializers.CharField()
-    image = serializers.FileField()
+    image = serializers.CharField()
 
 
 class ViewCategorySerializer(serializers.ModelSerializer):
@@ -44,9 +44,9 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
         stock = ProductItem.objects.aggregate(total_stock=Sum('stock'))
         return stock["total_stock"]
 
-class CompanySerializer(serializers.ModelSerializer):
+class BrandSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Company
+        model = Brand
         fields = ('id',
                   'name',
                   'description'
@@ -78,3 +78,20 @@ class AddProductItemSerializer(serializers.Serializer):
     size = serializers.IntegerField()
     # quantity = serializers.IntegerField()
     images = serializers.ListField(child=serializers.FileField())
+
+
+
+class EditCategorySerializer(serializers.Serializer): 
+    name = serializers.CharField()
+    description = serializers.CharField()
+    image = serializers.CharField()
+    class Meta:
+        model = Category
+        fields = ['name', 'description', 'image']
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.description = validated_data.get('description', instance.description)
+        instance.image = validated_data.get('image', instance.image)
+        instance.save()
+        return instance

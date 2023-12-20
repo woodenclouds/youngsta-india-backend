@@ -17,6 +17,8 @@ urlpatterns = [
     re_path(r'^admin/addProduct/$', views.addProduct, name="add_product"),
     re_path(r'^admin/add-subcategory/(?P<pk>.*)/$', views.addSubcategory, name="add_subcategory"),
     re_path(r'^admin/add-product-items/(?P<pk>.*)/$', views.addProductItem, name="addProductItem"),
+    re_path(r'^admin/edit-category/(?P<pk>.*)/$', views.editCategory, name="editCategory"),
+    re_path(r'^admin/delete-category/(?P<pk>.*)/$', views.deleteCategory, name="deleteCategory"),
 
 
 ]
