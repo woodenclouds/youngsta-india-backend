@@ -129,7 +129,7 @@ def addProduct(request):
             price = request.data["price"]
             offers = request.data["offers"]
             purchase_price = request.data["purchase_price"]
-            companyId = request.data["company_id"]
+            brandId = request.data["brand_id"]
             error = False
             if not SubCategory.objects.filter(pk=subcategoryId).exists():
                 error = True
@@ -139,12 +139,12 @@ def addProduct(request):
                         "message":"sub category not exist"
                     }
                 }
-            if not Company.objects.filter(pk=companyId).exists():
+            if not Brand.objects.filter(pk=brandId).exists():
                 error = True
                 response_data = {
                     "StatusCode":6001,
                     "data":{
-                        "message":"company not exist"
+                        "message":"brand not exist"
                     }
                 }
             if Product.objects.filter(name=name).exists():
@@ -157,8 +157,8 @@ def addProduct(request):
                 }
             if not error:
                 subcategory = SubCategory.objects.get(pk=subcategoryId)
-                company = Company.objects.get(pk=companyId)
-                product = Product.objects.create(name=name, description=description, subcategory=subcategory, price=price,offers=offers,purchase_price=purchase_price,company=company)
+                brand = Brand.objects.get(pk=brandId)
+                product = Product.objects.create(name=name, description=description, subcategory=subcategory, price=price,offers=offers,purchase_price=purchase_price,brand=brand)
                 transaction.commit()
                 response_data = {
                     "StatusCode":6000,
@@ -190,21 +190,21 @@ def addProduct(request):
 
 @api_view(["POST"])
 @group_required(["admin"])
-def addCompany(request):
+def addBrand(request):
     try:
         transaction.set_autocommit(False)
-        serialized = AddCategorySerializer(data=request.data)
+        serialized = AddBrandSerializer(data=request.data)
         if serialized.is_valid():
             name = request.data["name"]
             description = request.data["description"]
             image = request.data["image"]
-            if Company.objects.filter(name=name).exists():
+            if Brand.objects.filter(name=name).exists():
                 response_data={
                     "StatusCode":6001,
-                    "data":"company with this name already exists"
+                    "data":"brand with this name already exists"
                 }
             else:  
-                company = Company.objects.create(
+                brand= Brand.objects.create(
                     name = name,
                     description = description,
                     image = image
@@ -213,7 +213,7 @@ def addCompany(request):
                 response_data = {
                     "StatusCode":6000,
                     "data":{
-                        "message":f"{company.name} created succesfully"
+                        "message":f"{brand.name} created succesfully"
                     }
                 }         
         else:
@@ -239,10 +239,10 @@ def addCompany(request):
 
 @api_view(["GET"])
 @permission_classes((AllowAny,))
-def companies(request):
+def brands(request):
     try:
-        instance = Company.objects.all()
-        serialized = CompanySerializer(
+        instance = Brand.objects.all()
+        serialized = BrandSerializer(
             instance,
             many=True
         ).data
@@ -263,6 +263,54 @@ def companies(request):
             "message": str(e),
             "response": errors
         }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["PUT", "PATCH"])
+@group_required(["admin"])
+def editBrand(request, pk):
+    try:
+        # Get the existing category instance
+        brand = Brand.objects.get(id=pk)
+        # Deserialize the request data
+        serializer = EditBrandSerializer(brand, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            name = request.data.get("name")
+            description = request.data.get("description")
+            image = request.data.get("image")
+            brand.name = name
+            brand.description = description
+            brand.image = image
+            serializer.save()
+            response_data = {
+                "StatusCode": 6000,
+                "data": serializer.data,
+                "message": "brand updated successfully"
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": generate_serializer_errors(serializer.errors)
+            }
+    except Category.DoesNotExist:
+        response_data = {
+            "StatusCode": 6002,
+            "data": {"message": " not found"}
+        }
+    except Exception as e:
+        errType = e.__class__.__name__
+        errors = {
+            errType: traceback.format_exc()
+        }
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors
+        }
+
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 

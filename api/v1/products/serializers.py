@@ -44,27 +44,51 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
         stock = ProductItem.objects.aggregate(total_stock=Sum('stock'))
         return stock["total_stock"]
 
-class CompanySerializer(serializers.ModelSerializer):
+class BrandSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Company
+        model = Brand
         fields = ('id',
                   'name',
                   'description'
                   )
+        
+
+class AddBrandSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    description = serializers.CharField()
+    image = serializers.CharField() 
+    
+    
+class EditBrandSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    description = serializers.CharField()
+    image = serializers.CharField()
+    class Meta:
+        model = Category
+        fields = ['name', 'description', 'image']
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.description = validated_data.get('description', instance.description)
+        instance.image = validated_data.get('image', instance.image)
+        instance.save()
+        return instance
+    
+           
 class AddProductSerializer(serializers.Serializer):
     subcategory_id = serializers.CharField()
     name = serializers.CharField()
     description = serializers.CharField()
     price = serializers.DecimalField(max_digits=10, decimal_places=2)  
     offers = serializers.IntegerField()  
-    company_id = serializers.CharField()
+    brand_id = serializers.CharField()
     purchase_price = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 
 class AddCategorySerializer(serializers.Serializer):
     name = serializers.CharField()
     description = serializers.CharField()
-    image = serializers.FileField()
+    image = serializers.CharField()
 
 
 class AddSubCategorySerializer(serializers.Serializer):

@@ -7,8 +7,8 @@ import json
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import Group
 from rest_framework.exceptions import PermissionDenied
-from firebase_admin import messaging,credentials
-import firebase_admin
+# from firebase_admin import messaging,credentials
+# import firebase_admin
 import secrets
 import string
 
