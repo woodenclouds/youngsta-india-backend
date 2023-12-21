@@ -71,7 +71,6 @@ class SubCategory(SlugModel):
             self.order = self.parent.order + 1 
         else:
             self.order = 0
-        
         super().save(*args, **kwargs)
 
 

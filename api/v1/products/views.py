@@ -164,7 +164,8 @@ def editCategory(request, pk):
 def deleteCategory(request, pk):
     try:
         category = Category.objects.get(pk=pk)
-        category.delete()
+        category.is_deleted = "Yes"
+        category.save()
         response_data = {
             "StatusCode": 6000,
             "data" : {
@@ -186,6 +187,7 @@ def deleteCategory(request, pk):
         }
 
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+#delete category isdelete clarify
 
         
 
@@ -261,82 +263,7 @@ def addProduct(request):
 
 
 
-@api_view(["POST"])
-@group_required(["admin"])
-def addCompany(request):
-    try:
-        transaction.set_autocommit(False)
-        serialized = AddCategorySerializer(data=request.data)
-        if serialized.is_valid():
-            name = request.data["name"]
-            description = request.data["description"]
-            image = request.data["image"]
-            if Company.objects.filter(name=name).exists():
-                response_data={
-                    "StatusCode":6001,
-                    "data":"company with this name already exists"
-                }
-            else:  
-                company = Company.objects.create(
-                    name = name,
-                    description = description,
-                    image = image
-                ) 
-                transaction.commit()
-                response_data = {
-                    "StatusCode":6000,
-                    "data":{
-                        "message":f"{company.name} created succesfully"
-                    }
-                }         
-        else:
-            response_data = {
-                    "StatusCode": 6001,
-                    "data": generate_serializer_errors(serialized._errors)
-                }
-    except Exception as e:
-        transaction.rollback()
-        errType = e.__class__.__name__
-        errors = {
-            errType: traceback.format_exc()
-        }
-        response_data = {
-            "status": 0,
-            "api": request.get_full_path(),
-            "request": request.data,
-            "message": str(e),
-            "response": errors
-        }
-    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
-
-@api_view(["GET"])
-@permission_classes((AllowAny,))
-def companies(request):
-    try:
-        instance = Company.objects.all()
-        serialized = CompanySerializer(
-            instance,
-            many=True
-        ).data
-        response_data = {
-            "StatusCode":6000,
-            "data":serialized
-        }
-    except Exception as e:
-        transaction.rollback()
-        errType = e.__class__.__name__
-        errors = {
-            errType: traceback.format_exc()
-        }
-        response_data = {
-            "status": 0,
-            "api": request.get_full_path(),
-            "request": request.data,
-            "message": str(e),
-            "response": errors
-        }
-    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -459,3 +386,5 @@ def addProductItem(request,pk):
             "response": errors
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
