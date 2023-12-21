@@ -6,7 +6,6 @@ admin.site.register(Product)
 
 # admin.site.register(ProductItem)
 admin.site.register(ProductTag)
-admin.site.register(Brand)
 
 class ProductImageInline(admin.TabularInline):  # or StackedInline
     model = ProductImages
@@ -25,8 +24,11 @@ admin.site.register(SubCategory,SubCategoryAdmin)
 
 
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('pk', 'name', 'description')
-admin.site.register(Category, CategoryAdmin)
+    list_display=('pk', 'name','orders' )
+    ordering = ('orders',)
+admin.site.register(Category,  CategoryAdmin)
 
-
+class BrandAdmin(admin.ModelAdmin):
+    list_display=('pk', 'name', )
+admin.site.register(Brand, BrandAdmin)
 
