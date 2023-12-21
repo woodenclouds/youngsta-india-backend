@@ -310,22 +310,54 @@ def addBrand(request):
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
+# @api_view(["GET"])
+# @permission_classes((AllowAny,))
+# def brands(request):
+#     try:
+#         instance = Brand.objects.all()
+#         serialized = BrandSerializer(
+#             instance,
+#             many=True
+#         ).data
+#         response_data = {
+#             "StatusCode":6000,
+#             "data":serialized
+#         }
+#     except Exception as e:
+#         transaction.rollback()
+#         errType = e.__class__.__name__
+#         errors = {
+#             errType: traceback.format_exc()
+#         }
+#         response_data = {
+#             "status": 0,
+#             "api": request.get_full_path(),
+#             "request": request.data,
+#             "message": str(e),
+#             "response": errors
+#         }
+#     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+# ---------view brand----------------
 @api_view(["GET"])
 @permission_classes((AllowAny,))
 def brands(request):
     try:
-        instance = Brand.objects.all()
-        serialized = BrandSerializer(
-            instance,
-            many=True
-        ).data
+        instances = Category.objects.all()
+        serialized_instances = []
+
+        for instance in instances:
+            if instance.is_deleted == False: 
+                serialized_instances.append(BrandSerializer(instance).data)
+
         response_data = {
-            "StatusCode":6000,
-            "data":serialized
+            "StatusCode": 6000,
+            "data": serialized_instances
         }
     except Exception as e:
         transaction.rollback()
-        errType = e.__class__.__name__
+        errType = e._class.name_
         errors = {
             errType: traceback.format_exc()
         }
@@ -385,6 +417,169 @@ def editBrand(request, pk):
         }
 
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+# -----------------Delete brand ----------------------
+
+@api_view(["DELETE"])
+@group_required(["admin"])
+def deleteBrand(request, pk):
+    try:
+        brand = Brand.objects.get(pk=pk)
+        brand.is_deleted = True
+        brand.save()
+        response_data = {
+            "StatusCode": 6000,
+            "data" : {
+                "message" : f"{brand.name} deleted Successfully"
+            }
+        }
+    except Brand.DoesNotExist:
+        response_data = {
+            "StatusCode": 6001,
+            "data": {"message": "Category not found"}
+        }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": {"error": "An error occurred while deleting the category"}
+        }
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+# ----------views for adding atributes-------------
+
+@api_view(["POST"])
+@group_required(["admin"])
+def addAttribute(request):
+    try:
+        serializer = AddAttributeSerializer(data=request.data)  
+        if serializer.is_valid():
+            serializer.save()
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": "Attribute added successfully",
+                    "attribute": serializer.data
+                }
+            }
+            return Response({'app_data': response_data}, status=status.HTTP_201_CREATED)
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": serializer.errors
+            }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET"])
+def listAttributes(request):
+    try:
+        instances = Attribute.objects.all()
+        serialized_instances = []
+
+        for instance in instances:
+            if not instance.is_deleted:  # Check if 'is_deleted' is False
+                serialized_instances.append(AttributeSerializer(instance).data)
+
+        response_data = {
+            "StatusCode": 6000,
+            "data": serialized_instances
+        }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+        return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+
+
+@api_view(["PUT", "PATCH"])
+@group_required(["admin"])
+def editAttribute(request, pk):
+    try:
+        attribute = Attribute.objects.get(pk=pk)
+        serializer = EditAttributeSerializer(attribute, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            response_data = {
+                "StatusCode": 200,
+                "data": serializer.data,
+                "message": "Attribute updated successfully"
+            }
+            return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+        else:
+            response_data = {
+                "StatusCode": 400,
+                "data": serializer.errors,
+                "message": "Invalid data"
+            }
+            return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Attribute.DoesNotExist:
+        response_data = {
+            "StatusCode": 404,
+            "message": "Attribute does not exist"
+        }
+        return Response({'app_data': response_data}, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+        return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+@api_view(["DELETE"])
+@group_required(["admin"])
+def deleteAttribute(request, pk):
+    try:
+        attribute = Attribute.objects.get(pk=pk)
+        attribute.delete()  # Remove the attribute completely from the database
+        response_data = {
+            "StatusCode": 6000,
+            "data": {
+                "message": f"Attribute '{attribute.title}' deleted successfully"
+            }
+        }
+    except Attribute.DoesNotExist:
+        response_data = {
+            "StatusCode": 6001,
+            "data": {"message": "Attribute not found"}
+        }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": {"error": "An error occurred while deleting the attribute"}
+        }
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
 
 
 @api_view(["POST"])
@@ -507,3 +702,6 @@ def addProductItem(request,pk):
             "response": errors
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+

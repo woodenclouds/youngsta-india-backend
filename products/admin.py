@@ -16,6 +16,10 @@ class ProductItemAdmin(admin.ModelAdmin):
 
 # admin.site.register(SubCategory)
 
+class CategoryAdmin(admin.ModelAdmin):
+    list_display=('pk', 'name', )
+admin.site.register(Category, CategoryAdmin)
+
 class SubCategoryAdmin(admin.ModelAdmin):
     list_display = ('pk', 'name', 'description')
     ordering = ('-created_at',)
@@ -26,3 +30,8 @@ class BrandAdmin(admin.ModelAdmin):
     list_display=('pk', 'name', )
 admin.site.register(Brand, BrandAdmin)
 
+
+
+class AtributeAdmin(admin.ModelAdmin):
+    list_display=('pk', 'title', )
+admin.site.register(Attribute, AtributeAdmin)

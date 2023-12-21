@@ -35,7 +35,8 @@ def signup(request):
         transaction.set_autocommit(False)
         serializer = SignupSerializers(data = request.data)
         if serializer.is_valid():
-            name = request.data["name"]
+            first_name = request.data["first_name"]
+            last_name = request.data["last_name"]
             email = request.data["email"]
             password = request.data["password"]
             if not UserProfile.objects.filter(email=email).exists():
@@ -53,7 +54,8 @@ def signup(request):
                     enc_password = encrypt(password)
                     profile = UserProfile.objects.create(
                         user=user,
-                        name=name,
+                        first_name=first_name,
+                        last_name=last_name,
                         email=email,
                         password = enc_password
                     )
@@ -192,7 +194,8 @@ def login(request):
                     response_data = {
                         "StatusCode": 6000,
                         "data": {
-                            "name":profile.name,
+                            "first_name":profile.first_name,
+                            "last_name":profile.last_name,
                             "email":profile.email,
                             "access_token": access,
                             "refresh_token": str(refresh)
@@ -240,7 +243,8 @@ def admin_signup(request):
         transaction.set_autocommit(False)
         serializer = SignupSerializers(data=request.data)
         if serializer.is_valid():
-            name = request.data["name"]
+            first_name = request.data["first_name"]
+            last_name = request.data["last_name"]
             email = request.data["email"]
             password = request.data["password"]
             if not User.objects.filter(username=email).exists():
@@ -251,7 +255,8 @@ def admin_signup(request):
                 enc_password = encrypt(password)
                 admin_profile = AdminProfile.objects.create(
                     user=user,
-                    name=name,
+                    first_name=first_name,
+                    last_name=last_name,
                     email = email,
                     password = enc_password
                 )
@@ -314,7 +319,8 @@ def admin_login(request):
                     response_data = {
                         "StatusCode": 6000,
                         "data": {
-                            "name": profile.name,
+                            "first_name": profile.first_name,
+                            "last_name": profile.last_name,
                             "email": profile.email,
                             "access": access,
                             "refresh": str(refresh)

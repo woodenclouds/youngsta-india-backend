@@ -36,7 +36,8 @@ class AdminProfile(BaseModel):
 
 
 class UserProfile(BaseModel):
-    name = models.CharField(max_length=155, blank=True, null=True)
+    first_name = models.CharField(max_length=155, blank=True, null=True)
+    last_name = models.CharField(max_length=155, blank=True, null=True)
     email = models.EmailField(max_length=155, blank=True, null=True)
     country_code = models.CharField(max_length=5)  # Adjust max_length as per your requirements
     phone_number = models.CharField(max_length=15) 
