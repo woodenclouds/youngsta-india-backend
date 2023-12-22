@@ -24,7 +24,7 @@ admin.site.register(SubCategory,SubCategoryAdmin)
 
 
 class CategoryAdmin(admin.ModelAdmin):
-    list_display=('pk', 'name','orders' )
+    list_display=('pk', 'name', 'orders' )
     ordering = ('orders',)
 admin.site.register(Category,  CategoryAdmin)
 

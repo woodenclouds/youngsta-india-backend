@@ -158,3 +158,9 @@ class EditSubCategorySerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+class EditCategoryOrderSerializer(serializers.ModelSerializer):
+    orders = serializers.IntegerField()
+
+    class Meta:
+        model = Category
+        fields = ['orders']
