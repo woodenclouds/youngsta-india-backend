@@ -73,5 +73,16 @@ class PurchaseLog(BaseModel):
     
     
 
+
+# ---------wishlist model---------------
+
+
+
+class WishlistItem(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    product = models.ForeignKey('products.Product', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.user.username}'s wishlist item - {self.product.name}"
     
     
