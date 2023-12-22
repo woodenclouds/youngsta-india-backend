@@ -11,6 +11,7 @@ urlpatterns = [
     re_path(r'^category/$', views.categories, name="categories"),
     re_path(r'^brands/$', views.brands, name="brands"),
     re_path(r'^sub-category/$', views.viewSubCategory, name="sub-categories"),
+    re_path(r'^edit-categoryorder/(?P<pk>.*)/$', views.editCategoryOrder, name="deleteCategory"),
    
 
     # ---------------admin-------------
@@ -31,7 +32,5 @@ urlpatterns = [
     re_path(r'^admin/delete-category/(?P<pk>.*)/$', views.deleteCategory, name="deleteCategory"),
     re_path(r'^admin/edit-subcategory/(?P<pk>.*)/$', views.editSubCategory, name="editCategory"),
     re_path(r'^admin/delete-subcategory/(?P<pk>.*)/$', views.deleteSubCategory, name="deleteCategory"),
-
-
-
+    
 ]

@@ -2,13 +2,14 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework import status
 from rest_framework.response import Response
-
+from django.db.models import F, Value, IntegerField
 from django.db import transaction
 import traceback
 from .serializers import *
 from api.v1.main.decorater import *
 from api.v1.main.functions import *
 from products.models import *
+from django.db.models import Case, When, Value, IntegerField
 
 @api_view(["GET"])
 @group_required(["admin"])
@@ -39,6 +40,8 @@ def admin_product(request):
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
+from django.db.models import Max
+
 @api_view(["POST"])
 @group_required(["admin"])
 def addCategory(request):
@@ -50,25 +53,33 @@ def addCategory(request):
             description = request.data["description"]
             image = request.data["image"]
             cat_id = createsix()
+
+            # Get the highest existing order
+            highest_order = Category.objects.aggregate(Max('orders'))['orders__max']
+
+            # Set the order for the new category to be the next sequential number
+            order = highest_order + 1 if highest_order is not None else 1
+
             category = Category.objects.create(
-                name = name,
-                description = description,
-                image = image,
-                cat_id=cat_id
+                name=name,
+                description=description,
+                image=image,
+                cat_id=cat_id,
+                orders=order
             )
             transaction.commit()
             print(cat_id)
             response_data = {
-                "StatusCode":6000,
-                "data":{
-                    "message":"category created succesfully"
+                "StatusCode": 6000,
+                "data": {
+                    "message": "category created successfully"
                 }
             }
         else:
             response_data = {
-                    "StatusCode": 6001,
-                    "data": generate_serializer_errors(serializer._errors)
-                }
+                "StatusCode": 6001,
+                "data": generate_serializer_errors(serializer._errors)
+            }
     except Exception as e:
         transaction.rollback()
         errType = e.__class__.__name__
@@ -161,6 +172,58 @@ def editCategory(request, pk):
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
+@api_view(["PUT", "PATCH"])
+@permission_classes((AllowAny,))
+def editCategoryOrder(request, pk):
+    try:
+        category = Category.objects.get(id=pk)
+        serializers = EditCategoryOrderSerializer(data=request.data)
+        if serializers.is_valid():
+            new_order = int(request.data.get('orders'))
+
+            # Get the current order of the category
+            current_order = category.orders
+
+            # Update the order of the specified category
+            category.orders = new_order
+            category.save()
+
+            # Update the order of other categories after the specified category
+            categories_to_update = Category.objects.filter(is_deleted=False, orders__gt=current_order)
+            for other_category in categories_to_update:
+                other_category.orders += 1
+                other_category.save()
+
+            response_data = {
+                "StatusCode": 6000,
+                "data": {"message": "Category order updated successfully"}
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": generate_serializer_errors(serializers.errors)
+            }
+    except Category.DoesNotExist:
+        response_data = {
+            "StatusCode": 6002,
+            "data": {"message": "Category not found"}
+        }
+    except Exception as e:
+        errType = e.__class__.__name__
+        errors = {
+            errType: traceback.format_exc()
+        }
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors
+        }
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
 @api_view(["DELETE"])
 @group_required(["admin"])
 def deleteCategory(request, pk):
@@ -168,10 +231,22 @@ def deleteCategory(request, pk):
         category = Category.objects.get(pk=pk)
         category.is_deleted = True
         category.save()
+
+        # Update the order of all categories
+        all_categories = Category.objects.annotate(
+            is_deleted_int=Case(When(is_deleted=True, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+            ).order_by('is_deleted_int', 'orders')
+
+        for i, current_category in enumerate(all_categories, start=1):
+            current_category.orders = i
+            current_category.save()
         response_data = {
             "StatusCode": 6000,
             "data" : {
-                "message" : f"{category.name} deleted Successfully"
+                "message" : f"{category.name} deleted successfully"
             }
         }
     except Category.DoesNotExist:
@@ -189,6 +264,10 @@ def deleteCategory(request, pk):
         }
 
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+
+
 
                 
 @api_view(["POST"])

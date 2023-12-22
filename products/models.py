@@ -39,24 +39,10 @@ class Category(SlugModel):
             # Append a random number to the slug
             slug = f"{base_slug}-{random.randint(1, 999)}"
         return slug
-    
-
-    def get_next_order(self):
-        # Check if there are existing categories
-        existing_categories = Category.objects.all()
-        if existing_categories.exists():
-            # Get the highest order value and increment by 1
-            highest_order = existing_categories.aggregate(models.Max('orders'))['orders__max']
-            return highest_order + 1
-        else:
-            # If no existing categories, return 1
-            return 1
-            
 
     def save(self, *args, **kwargs):
         # Generate the base slug from the name with spaces replaced by hyphens
         base_slug = slugify(self.name)
-        self.orders = self.get_next_order()
         # Add a random number if the slug already exists
         self.slug = self.get_unique_slug(base_slug)
         super().save(*args, **kwargs)

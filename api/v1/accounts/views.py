@@ -319,8 +319,8 @@ def admin_login(request):
                     response_data = {
                         "StatusCode": 6000,
                         "data": {
-                            "first_name": profile.first_name,
-                            "last_name": profile.last_name,
+                            # "first_name": profile.first_name,
+                            # "last_name": profile.last_name,
                             "email": profile.email,
                             "access": access,
                             "refresh": str(refresh)

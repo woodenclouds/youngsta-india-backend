@@ -220,3 +220,9 @@ class EditAttributeSerializer(serializers.ModelSerializer):
     
 
 
+class EditCategoryOrderSerializer(serializers.ModelSerializer):
+    orders = serializers.IntegerField()
+
+    class Meta:
+        model = Category
+        fields = ['orders']
