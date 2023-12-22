@@ -100,7 +100,7 @@ def addCategory(request):
 @permission_classes((AllowAny,))
 def categories(request):
     try:
-        instances = Category.objects.all()
+        instances = Category.objects.order_by('position')
         serialized_instances = []
 
         for instance in instances:
@@ -172,56 +172,73 @@ def editCategory(request, pk):
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
+
 @api_view(["PUT", "PATCH"])
 @permission_classes((AllowAny,))
-def editCategoryOrder(request, pk):
+def editCategoryPosition(request, pk):
     try:
         category = Category.objects.get(id=pk)
-        serializers = EditCategoryOrderSerializer(data=request.data)
-        if serializers.is_valid():
-            new_order = int(request.data.get('orders'))
+        serializer = EditCategoryPositionSerializer(instance=category, data=request.data)
 
-            # Get the current order of the category
-            current_order = category.orders
+        if serializer.is_valid():
+            new_position = serializer.validated_data.get('position')
 
-            # Update the order of the specified category
-            category.orders = new_order
-            category.save()
+            # Check if the new position is within the valid range
+            total_categories = Category.objects.count()
+            if 1 <= new_position <= total_categories:
+                with transaction.atomic():
+                    current_position = category.position
 
-            # Update the order of other categories after the specified category
-            categories_to_update = Category.objects.filter(is_deleted=False, orders__gt=current_order)
-            for other_category in categories_to_update:
-                other_category.orders += 1
-                other_category.save()
+                    # Shift categories below the target position up
+                    if current_position < new_position:
+                        Category.objects.filter(
+                            position__gt=current_position,
+                            position__lte=new_position
+                        ).update(position=models.F('position') - 1)
+                    # Shift categories above the target position down
+                    elif current_position > new_position:
+                        Category.objects.filter(
+                            position__lt=current_position,
+                            position__gte=new_position
+                        ).update(position=models.F('position') + 1)
 
-            response_data = {
-                "StatusCode": 6000,
-                "data": {"message": "Category order updated successfully"}
-            }
+                    # Update the position of the current category
+                    category.position = new_position
+                    category.save()
+
+                    response_data = {
+                        "StatusCode": 6000,
+                        "data": {
+                            "message": f"Category position updated successfully to {new_position}"
+                        }
+                    }
+            else:
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": {"message": "Invalid position value"}
+                }
         else:
             response_data = {
-                "StatusCode": 6001,
-                "data": generate_serializer_errors(serializers.errors)
+                "StatusCode": 6002,
+                "data": generate_serializer_errors(serializer.errors)
             }
     except Category.DoesNotExist:
         response_data = {
-            "StatusCode": 6002,
+            "StatusCode": 6003,
             "data": {"message": "Category not found"}
         }
     except Exception as e:
-        errType = e.__class__.__name__
-        errors = {
-            errType: traceback.format_exc()
-        }
         response_data = {
             "status": 0,
             "api": request.get_full_path(),
             "request": request.data,
             "message": str(e),
-            "response": errors
+            "response": {"error": "An error occurred while updating the category position"}
         }
 
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
 
 
 @api_view(["DELETE"])
@@ -241,7 +258,7 @@ def deleteCategory(request, pk):
             ).order_by('is_deleted_int', 'orders')
 
         for i, current_category in enumerate(all_categories, start=1):
-            current_category.orders = i
+            current_category.position = i
             current_category.save()
         response_data = {
             "StatusCode": 6000,
@@ -663,6 +680,8 @@ def deleteAttribute(request, pk):
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
+#-----------------Sub Category ----------------------------------------------------------------
+
 
 @api_view(["POST"])
 @group_required(["admin"])
@@ -672,34 +691,24 @@ def addSubcategory(request):
         serialized = AddSubCategorySerializer(data=request.data)
         category_id = request.data["category"]
         parent_id = request.data.get("parent")  # Use get to avoid KeyError if "parent" is not present
-        error = False
+
+        errors = []
 
         if not serialized.is_valid():
-            error = True
-            response_data = {
-                "StatusCode": 6001,
-                "data": generate_serializer_errors(serialized._errors)
-            }
+            errors.append(generate_serializer_errors(serialized._errors))
 
         if not Category.objects.filter(pk=category_id).exists():
-            error = True
-            response_data = {
-                "StatusCode": 6001,
-                "data": {
-                    "message": "category not exist"
-                }
-            }
+            errors.append("Category does not exist.")
 
         if parent_id and not SubCategory.objects.filter(pk=parent_id).exists():
-            error = True
+            errors.append("Parent SubCategory does not exist.")
+
+        if errors:
             response_data = {
                 "StatusCode": 6001,
-                "data": {
-                    "message": "parent not exist"
-                }
+                "data": {"message": ", ".join(errors)}
             }
-
-        if not error:
+        else:
             name = request.data["name"]
             description = request.data["description"]
             category = Category.objects.get(pk=category_id)
@@ -709,26 +718,30 @@ def addSubcategory(request):
             else:
                 parent = None
 
+            # Get the highest existing position for SubCategory
+            highest_position = SubCategory.objects.aggregate(Max('position'))['position__max']
+
+            # Set the position for the new SubCategory to be the next sequential number
+            position = highest_position + 1 if highest_position is not None else 1
+
             if not SubCategory.objects.filter(name=name, category=category).exists():
                 sub_category = SubCategory.objects.create(
                     name=name,
                     description=description,
                     category=category,
-                    parent=parent
+                    parent=parent,
+                    position=position
                 )
+
                 transaction.commit()
                 response_data = {
                     "StatusCode": 6000,
-                    "data": {
-                        "message": f"{sub_category.name} successfully created"
-                    }
+                    "data": {"message": f"{sub_category.name} successfully created"}
                 }
             else:
                 response_data = {
                     "StatusCode": 6001,
-                    "data": {
-                        "message": "subcategory already exists"
-                    }
+                    "data": {"message": "Subcategory already exists"}
                 }
     except Exception as e:
         transaction.rollback()
@@ -744,6 +757,7 @@ def addSubcategory(request):
             "response": errors
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
 
 
 @api_view(["GET"])
@@ -874,8 +888,73 @@ def deleteSubCategory(request, pk):
 
 
 
+@api_view(["PUT", "PATCH"])
+@permission_classes((AllowAny,))
+def editSubCategoryPosition(request, pk):
+    try:
+        category = SubCategory.objects.get(id=pk)
+        serializer = EditSubCategoryPositionSerializer(instance=category, data=request.data)
+
+        if serializer.is_valid():
+            new_position = serializer.validated_data.get('position')
+
+            # Check if the new position is within the valid range
+            total_categories = SubCategory.objects.count()
+            if 1 <= new_position <= total_categories:
+                with transaction.atomic():
+                    current_position = category.position
+
+                    # Shift categories below the target position up
+                    if current_position < new_position:
+                        SubCategory.objects.filter(
+                            position__gt=current_position,
+                            position__lte=new_position
+                        ).update(position=models.F('position') - 1)
+                    # Shift categories above the target position down
+                    elif current_position > new_position:
+                        SubCategory.objects.filter(
+                            position__lt=current_position,
+                            position__gte=new_position
+                        ).update(position=models.F('position') + 1)
+
+                    # Update the position of the current category
+                    category.position = new_position
+                    category.save()
+
+                    response_data = {
+                        "StatusCode": 6000,
+                        "data": {
+                            "message": f"Category position updated successfully to {new_position}"
+                        }
+                    }
+            else:
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": {"message": "Invalid position value"}
+                }
+        else:
+            response_data = {
+                "StatusCode": 6002,
+                "data": generate_serializer_errors(serializer.errors)
+            }
+    except SubCategory.DoesNotExist:
+        response_data = {
+            "StatusCode": 6003,
+            "data": {"message": "Category not found"}
+        }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": {"error": "An error occurred while updating the category position"}
+        }
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
+#-----------------Sub Category End----------------------------------------------------------------
 
 #=========== Product =================================================================
 
@@ -939,5 +1018,76 @@ def addProductItem(request,pk):
             "response": errors
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+
+
+#----------------------- Products -----------------------------------------
+@api_view(["GET"])
+@permission_classes((AllowAny,))
+def viewProduct(request, type):
+    try:
+        response_data = {}
+
+        if type == "all":
+            instances = Product.objects.filter(is_deleted=False)
+            serialized_instances = [ProductViewSerializer(instance).data for instance in instances]
+            response_data = {
+                "StatusCode": 6000,
+                "data": serialized_instances
+            }
+
+        elif Product.objects.filter(id=type, is_deleted=False).exists():
+            instances = Product.objects.filter(id=type, is_deleted=False)
+            serialized_instances = [ProductViewSerializer(instance).data for instance in instances]
+            response_data = {
+                "StatusCode": 6000,
+                "data": serialized_instances
+            }             
+
+
+        elif Product.objects.filter(brand__id=type, is_deleted=False).exists():
+            
+            instances = Product.objects.filter(brand__id=type, is_deleted=False)
+            serialized_instances = [ProductViewSerializer(instance).data for instance in instances]
+            response_data = {
+                "StatusCode": 6000,
+                "data": serialized_instances
+            }             
+
+
+        elif Product.objects.filter(subcategory__id=type, is_deleted=False).exists():
+            instances = Product.objects.filter(subcategory__id=type, is_deleted=False)
+            serialized_instances = [ProductViewSerializer(instance).data for instance in instances]
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": serialized_instances
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Product not found or deleted"
+                }
+            }
+
+    except Exception as e:
+        transaction.rollback()
+        errType = e.__class__.__name__
+        errors = {
+            errType: traceback.format_exc()
+        }
+        response_data.update({
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors
+        })
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
 
 

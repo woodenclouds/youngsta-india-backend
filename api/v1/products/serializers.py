@@ -159,6 +159,23 @@ class EditSubCategorySerializer(serializers.ModelSerializer):
         instance.save()
         return instance
     
+
+class EditCategoryPositionSerializer(serializers.ModelSerializer):
+    position = serializers.IntegerField()
+
+    class Meta:
+        model = Category
+        fields = ['position']
+
+class EditSubCategoryPositionSerializer(serializers.ModelSerializer):
+    position = serializers.IntegerField()
+
+    class Meta:
+        model = SubCategory
+        fields = ['position']
+
+
+
 # -------Atribute serializers-------------
 
 class AttributeSerializer(serializers.ModelSerializer):
@@ -200,11 +217,6 @@ class AddAttributeSerializer(serializers.Serializer):
 
 
 
-
-
-
-
-
 class EditAttributeSerializer(serializers.ModelSerializer):
     values = serializers.CharField()
 
@@ -216,13 +228,37 @@ class EditAttributeSerializer(serializers.ModelSerializer):
         # Split the comma-separated values and return as a list
         return [val.strip() for val in value.split(',')]
     
-    
-    
 
-
-class EditCategoryOrderSerializer(serializers.ModelSerializer):
-    orders = serializers.IntegerField()
-
+    #------------Products ----------------------------------------------------------------
+class ProductViewSerializer(serializers.ModelSerializer):
+    subcategory = serializers.SerializerMethodField()
+    brand = serializers.SerializerMethodField()
     class Meta:
-        model = Category
-        fields = ['orders']
+        model = Product
+        fields = (
+                'id',
+                'name',
+                'description',
+                'brand',
+                'offers',
+                'subcategory',
+                'purchase_price',
+                'price',
+                'specs',
+                'status'
+            )
+
+    def get_brand(self , instance):
+        brand = instance.brand.name
+        return brand
+    
+    def get_subcategory(self,instance):
+        subcategory = instance.subcategory.category.name
+        sub = instance.subcategory.name
+        name = subcategory + '-' + sub
+        return name
+
+        
+    
+
+       
