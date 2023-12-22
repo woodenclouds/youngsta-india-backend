@@ -20,7 +20,7 @@ class Category(SlugModel):
     image = models.TextField()
     cat_id = models.CharField(max_length=6, blank=True, null=True)
     published = models.BooleanField(default=False)
-    orders = models.IntegerField(default=0)
+    position = models.IntegerField(default=0)
 
     class Meta:
         db_table = 'product_category'
@@ -55,6 +55,7 @@ class SubCategory(SlugModel):
     description = models.TextField()
     published = models.BooleanField(default=False)
     order = models.IntegerField(default=0, blank=True,null=True)
+    position = models.IntegerField(default=0)
     parent = models.ForeignKey('self',on_delete=models.CASCADE, blank=True,null=True)
     class Meta:
         db_table = "product_subcategory"
@@ -146,7 +147,7 @@ class Product(BaseModel):
     description = models.TextField()
     price = models.DecimalField(max_digits=8, decimal_places=2)
     offers = models.PositiveIntegerField(max_length=100,blank=True,null=True)
-    brand = models.ForeignKey(Brand,on_delete=models.CASCADE,null=True,blank=True,related_name="brand")
+    brand = models.ForeignKey(Brand,on_delete=models.CASCADE,null=True,blank=True, related_name="brand")
     subcategory = models.ForeignKey(SubCategory,on_delete= models.CASCADE, related_name="sub_categories", blank=True)
     specs = models.TextField(blank=True, null=True)
     status = models.CharField(choices=PRODUCT_STATUS,default='stocking',blank=True,null=True)
@@ -158,7 +159,7 @@ class Product(BaseModel):
         verbose_name_plural = 'Products'
 
     def __str__(self):
-        return self.name
+        return  self.name
     
 
 class ProductItem(BaseModel):
@@ -190,5 +191,17 @@ class ProductImages(BaseModel):
         verbose_name_plural = 'ProductImages'
 
 
+# --------------model for attributes-------------
 
 
+
+class Attribute(BaseModel):
+    title = models.CharField(max_length=100)
+    display_name = models.CharField(max_length=100)
+    values = models.JSONField(default=list)  
+
+    class Meta:
+        db_table = 'product_attributes'
+        managed = True
+        verbose_name = 'Attribute'
+        verbose_name_plural = 'Attributes'

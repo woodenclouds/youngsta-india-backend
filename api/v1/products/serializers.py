@@ -158,9 +158,107 @@ class EditSubCategorySerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
-class EditCategoryOrderSerializer(serializers.ModelSerializer):
-    orders = serializers.IntegerField()
+    
+
+class EditCategoryPositionSerializer(serializers.ModelSerializer):
+    position = serializers.IntegerField()
 
     class Meta:
         model = Category
-        fields = ['orders']
+        fields = ['position']
+
+class EditSubCategoryPositionSerializer(serializers.ModelSerializer):
+    position = serializers.IntegerField()
+
+    class Meta:
+        model = SubCategory
+        fields = ['position']
+
+
+
+# -------Atribute serializers-------------
+
+class AttributeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Attribute
+        fields = ('id', 
+                  'title', 
+                  'display_name', 
+                  'values')
+
+
+
+# class AddAttributeSerializer(serializers.Serializer):
+#     title = serializers.CharField(max_length=100)
+#     display_name = serializers.CharField(max_length=100)
+#     values = serializers.ListField(child=serializers.CharField(), allow_empty=False)
+
+
+
+
+class AddAttributeSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=100)
+    display_name = serializers.CharField(max_length=100)
+    values = serializers.CharField()  # Accepts comma-separated values
+
+    def create(self, validated_data):
+        """
+        Create and return a new Attribute instance, given the validated data.
+        """
+        values = validated_data.pop('values', '')  # Extract 'values' from validated_data
+
+        # Split the 'values' string by commas and convert values to integers or strings
+        values_list = [int(val) if val.isdigit() else val.strip() for val in values.split(',')]
+
+        # Add the 'values' list back to validated_data before creating the instance
+        validated_data['values'] = values_list
+
+        return Attribute.objects.create(**validated_data)
+
+
+
+class EditAttributeSerializer(serializers.ModelSerializer):
+    values = serializers.CharField()
+
+    class Meta:
+        model = Attribute
+        fields = ('title', 'display_name', 'values')
+
+    def validate_values(self, value):
+        # Split the comma-separated values and return as a list
+        return [val.strip() for val in value.split(',')]
+    
+
+    #------------Products ----------------------------------------------------------------
+class ProductViewSerializer(serializers.ModelSerializer):
+    subcategory = serializers.SerializerMethodField()
+    brand = serializers.SerializerMethodField()
+    class Meta:
+        model = Product
+        fields = (
+                'id',
+                'name',
+                'description',
+                'brand',
+                'offers',
+                'subcategory',
+                'purchase_price',
+                'price',
+                'specs',
+                'status'
+            )
+
+    def get_brand(self , instance):
+        brand = instance.brand.name
+        return brand
+    
+    def get_subcategory(self,instance):
+        subcategory = instance.subcategory.category.name
+        sub = instance.subcategory.name
+        name = subcategory + '-' + sub
+        return name
+
+        
+    
+
+       
