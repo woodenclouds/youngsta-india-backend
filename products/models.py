@@ -20,6 +20,7 @@ class Category(SlugModel):
     image = models.TextField()
     cat_id = models.CharField(max_length=6, blank=True, null=True)
     published = models.BooleanField(default=False)
+    orders = models.IntegerField(default=0)
 
     class Meta:
         db_table = 'product_category'
@@ -37,17 +38,29 @@ class Category(SlugModel):
         while Category.objects.filter(slug=slug).exists():
             # Append a random number to the slug
             slug = f"{base_slug}-{random.randint(1, 999)}"
-
         return slug
+    
+
+    def get_next_order(self):
+        # Check if there are existing categories
+        existing_categories = Category.objects.all()
+        if existing_categories.exists():
+            # Get the highest order value and increment by 1
+            highest_order = existing_categories.aggregate(models.Max('orders'))['orders__max']
+            return highest_order + 1
+        else:
+            # If no existing categories, return 1
+            return 1
+            
 
     def save(self, *args, **kwargs):
         # Generate the base slug from the name with spaces replaced by hyphens
         base_slug = slugify(self.name)
-
+        self.orders = self.get_next_order()
         # Add a random number if the slug already exists
         self.slug = self.get_unique_slug(base_slug)
-
         super().save(*args, **kwargs)
+
 
 
 class SubCategory(SlugModel):
@@ -62,17 +75,39 @@ class SubCategory(SlugModel):
         managed = True
         verbose_name = 'Sub Category'
         verbose_name_plural = 'Sub Categories'
+    
 
     def __str__(self):
-        return f"{self.name}-{self.category.name}"
-    
+        if self.category:
+            return f"{self.name}-{self.category.name}"
+        else:
+            return f"{self.name}"
+
     def save(self, *args, **kwargs):
         if self.parent:
-            self.order = self.parent.order + 1 
+            self.order = self.parent.order + 1
         else:
             self.order = 0
-        
+
+        base_slug = slugify(self.name)
+
+        # Add a random number if the slug already exists
+        self.slug = self.get_unique_slug(base_slug)
+
         super().save(*args, **kwargs)
+
+        
+    #slug 
+    def get_unique_slug(self, base_slug):
+        slug = base_slug
+
+        # Check if the slug already exists
+        while SubCategory.objects.filter(slug=slug).exists():
+            # Append a random number to the slug
+            slug = f"{base_slug}-{random.randint(1, 999)}"
+
+        return slug
+
 
 
 class Brand(SlugModel):

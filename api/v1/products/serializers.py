@@ -19,6 +19,15 @@ class ViewCategorySerializer(serializers.ModelSerializer):
             'image'
         )
 
+class ViewSubCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubCategory
+        fields = (
+            'id',
+            'name',
+            'description',
+            'category'
+        )
 
 class ProductAdminViewSerializer(serializers.ModelSerializer):
     category = serializers.SerializerMethodField()
@@ -94,6 +103,9 @@ class AddCategorySerializer(serializers.Serializer):
 class AddSubCategorySerializer(serializers.Serializer):
     name = serializers.CharField()
     description = serializers.CharField()
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+    parent = serializers.PrimaryKeyRelatedField(queryset=SubCategory.objects.all(), required=False, allow_null=True)
+
 
 
 class AddProductItemSerializer(serializers.Serializer):
@@ -117,5 +129,32 @@ class EditCategorySerializer(serializers.Serializer):
         instance.name = validated_data.get('name', instance.name)
         instance.description = validated_data.get('description', instance.description)
         instance.image = validated_data.get('image', instance.image)
+        instance.save()
+        return instance
+    
+class EditSubCategorySerializer(serializers.ModelSerializer):
+    name = serializers.CharField()
+    description = serializers.CharField()
+
+    class Meta:
+        model = SubCategory
+        fields = ['name', 'description', 'category', 'parent']
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.description = validated_data.get('description', instance.description)
+
+        # 'category' and 'parent' should be instances of Category and SubCategory respectively
+        category_data = validated_data.get('category', None)
+        parent_data = validated_data.get('parent', None)
+
+        if category_data:
+            category_instance = Category.objects.get(name=category_data)
+            instance.category = category_instance
+
+        if parent_data:
+            parent_instance = SubCategory.objects.get(name=parent_data)
+            instance.parent = parent_instance
+
         instance.save()
         return instance

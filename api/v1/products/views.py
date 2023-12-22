@@ -5,7 +5,6 @@ from rest_framework.response import Response
 
 from django.db import transaction
 import traceback
-
 from .serializers import *
 from api.v1.main.decorater import *
 from api.v1.main.functions import *
@@ -91,13 +90,15 @@ def addCategory(request):
 def categories(request):
     try:
         instances = Category.objects.all()
-        serialized = ViewCategorySerializer(
-            instances,
-            many=True
-        ).data
+        serialized_instances = []
+
+        for instance in instances:
+            if instance.is_deleted == False: 
+                serialized_instances.append(ViewCategorySerializer(instance).data)
+
         response_data = {
-            "StatusCode":6000,
-            "data":serialized
+            "StatusCode": 6000,
+            "data": serialized_instances
         }
     except Exception as e:
         transaction.rollback()
@@ -120,6 +121,7 @@ def editCategory(request, pk):
     try:
         # Get the existing category instance
         category = Category.objects.get(id=pk)
+        print(category)
         # Deserialize the request data
         serializer = EditCategorySerializer(category, data=request.data, partial=True)
         if serializer.is_valid():
@@ -164,7 +166,8 @@ def editCategory(request, pk):
 def deleteCategory(request, pk):
     try:
         category = Category.objects.get(pk=pk)
-        category.delete()
+        category.is_deleted = True
+        category.save()
         response_data = {
             "StatusCode": 6000,
             "data" : {
@@ -187,8 +190,7 @@ def deleteCategory(request, pk):
 
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
-        
-
+                
 @api_view(["POST"])
 @group_required(["admin"])
 def addProduct(request):
@@ -339,6 +341,7 @@ def brands(request):
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
+
 @api_view(["PUT", "PATCH"])
 @group_required(["admin"])
 def editBrand(request, pk):
@@ -386,50 +389,71 @@ def editBrand(request, pk):
 
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
-
+#============= Sub Category (add, edit , delete) =================================================================
 @api_view(["POST"])
 @group_required(["admin"])
-def addSubcategory(request,pk):
+def addSubcategory(request):
     try:
         transaction.set_autocommit(False)
         serialized = AddSubCategorySerializer(data=request.data)
+        category_id = request.data["category"]
+        parent_id = request.data.get("parent")  # Use get to avoid KeyError if "parent" is not present
         error = False
+
         if not serialized.is_valid():
             error = True
             response_data = {
-                    "StatusCode": 6001,
-                    "data": generate_serializer_errors(serialized._errors)
-                }
-        if not Category.objects.filter(pk=pk).exists():
+                "StatusCode": 6001,
+                "data": generate_serializer_errors(serialized._errors)
+            }
+
+        if not Category.objects.filter(pk=category_id).exists():
             error = True
             response_data = {
-                "StatusCode":6001,
-                "data":{
-                    "message":"category not exist"
+                "StatusCode": 6001,
+                "data": {
+                    "message": "category not exist"
                 }
             }
+
+        if parent_id and not SubCategory.objects.filter(pk=parent_id).exists():
+            error = True
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "parent not exist"
+                }
+            }
+
         if not error:
             name = request.data["name"]
             description = request.data["description"]
-            category = Category.objects.get(pk=pk)
-            if not SubCategory.objects.filter(name=name,category=category).exists():
+            category = Category.objects.get(pk=category_id)
+
+            if parent_id:
+                parent = SubCategory.objects.get(pk=parent_id)
+            else:
+                parent = None
+
+            if not SubCategory.objects.filter(name=name, category=category).exists():
                 sub_category = SubCategory.objects.create(
-                    name = name,
-                    description = description,
-                    category = category
+                    name=name,
+                    description=description,
+                    category=category,
+                    parent=parent
                 )
                 transaction.commit()
-                response_data={
-                    "StatusCode":6000,
-                    "data":{
-                        "message":f"{sub_category.name} successfully created"
+                response_data = {
+                    "StatusCode": 6000,
+                    "data": {
+                        "message": f"{sub_category.name} successfully created"
                     }
                 }
             else:
                 response_data = {
-                    "StatusCode":6001,
-                    "data":{
-                        "message":"subcategory already exists"
+                    "StatusCode": 6001,
+                    "data": {
+                        "message": "subcategory already exists"
                     }
                 }
     except Exception as e:
@@ -446,6 +470,140 @@ def addSubcategory(request,pk):
             "response": errors
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes((AllowAny,))
+def viewSubCategory(request):
+    try:
+        instances = SubCategory.objects.filter(is_deleted=False)
+        serialized_instances = []
+
+        for instance in instances:
+            serialized_instance = ViewSubCategorySerializer(instance).data
+            serialized_instances.append(serialized_instance)
+
+        response_data = {
+            "StatusCode": 6000,
+            "data": serialized_instances
+        }
+    except Exception as e:
+        transaction.rollback()
+        errType = e.__class__.__name__
+        errors = {
+            errType: traceback.format_exc()
+        }
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+@api_view(["PUT", "PATCH"])
+@group_required(["admin"])
+def editSubCategory(request, pk):
+    try:
+        subcategory = SubCategory.objects.get(id=pk)
+        serializer = EditSubCategorySerializer(subcategory, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            name = request.data.get("name")
+            description = request.data.get("description")
+            category_id = request.data.get("category")
+            parent_id = request.data.get("parent")
+
+            try:
+                category = Category.objects.get(id=category_id)
+            except Category.DoesNotExist:
+                return Response({
+                    "app_data": {
+                        "StatusCode": 6002,
+                        "data": {"message": "Category not found"}
+                    }
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            try:
+                parent_subcategory = SubCategory.objects.get(id=parent_id)
+            except SubCategory.DoesNotExist:
+                return Response({
+                    "app_data": {
+                        "StatusCode": 6002,
+                        "data": {"message": "Parent SubCategory not found"}
+                    }
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            subcategory.name = name
+            subcategory.description = description
+            subcategory.category = category
+            subcategory.parent = parent_subcategory
+            subcategory.save()
+
+            response_data = {
+                "StatusCode": 6000,
+                "data": serializer.data,
+                "message": "Subcategory updated successfully"
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": generate_serializer_errors(serializer.errors)
+            }
+    except SubCategory.DoesNotExist:
+        response_data = {
+            "StatusCode": 6002,
+            "data": {"message": "Subcategory not found"}
+        }
+    except Exception as e:
+        errType = e.__class__.__name__
+        errors = {
+            errType: traceback.format_exc()
+        }
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+@api_view(["DELETE"])
+@group_required(["admin"])
+def deleteSubCategory(request, pk):
+    try:
+        subcategory = SubCategory.objects.get(pk=pk)
+        subcategory.is_deleted = True
+        subcategory.save()
+        response_data = {
+            "StatusCode":  6000,
+            "data" : {
+                "message" : f"{subcategory.name} deleted Successfully"
+            }
+        }
+    except SubCategory.DoesNotExist:
+        response_data = {
+            "StatusCode": 6001,
+            "data": {"message": "Category not found"}
+        }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": {"error": "An error occurred while deleting the category"}
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+#=========== Product =================================================================
 
 @api_view(["POST"])
 @group_required(["admin"])
@@ -507,3 +665,5 @@ def addProductItem(request,pk):
             "response": errors
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+

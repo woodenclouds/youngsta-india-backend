@@ -22,6 +22,12 @@ class SubCategoryAdmin(admin.ModelAdmin):
     search_fields = ('pk', 'name',)
 admin.site.register(SubCategory,SubCategoryAdmin)
 
+
+class CategoryAdmin(admin.ModelAdmin):
+    list_display=('pk', 'name','orders' )
+    ordering = ('orders',)
+admin.site.register(Category,  CategoryAdmin)
+
 class BrandAdmin(admin.ModelAdmin):
     list_display=('pk', 'name', )
 admin.site.register(Brand, BrandAdmin)
