@@ -16,9 +16,9 @@ class ProductItemAdmin(admin.ModelAdmin):
 
 # admin.site.register(SubCategory)
 
-class CategoryAdmin(admin.ModelAdmin):
-    list_display=('pk', 'name', )
-admin.site.register(Category, CategoryAdmin)
+# class CategoryAdmin(admin.ModelAdmin):
+#     list_display=('pk', 'name', )
+# admin.site.register(Category, CategoryAdmin)
 
 class SubCategoryAdmin(admin.ModelAdmin):
     list_display = ('pk', 'name', 'description')
