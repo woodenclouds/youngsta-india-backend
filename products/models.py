@@ -204,5 +204,17 @@ class ProductImages(BaseModel):
         verbose_name_plural = 'ProductImages'
 
 
+# --------------model for attributes-------------
 
 
+
+class Attribute(BaseModel):
+    title = models.CharField(max_length=100)
+    display_name = models.CharField(max_length=100)
+    values = models.JSONField(default=list)  
+
+    class Meta:
+        db_table = 'product_attributes'
+        managed = True
+        verbose_name = 'Attribute'
+        verbose_name_plural = 'Attributes'
