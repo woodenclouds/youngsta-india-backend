@@ -15,7 +15,7 @@ class ProductItemAdmin(admin.ModelAdmin):
     inlines = [ProductImageInline]
 
 # admin.site.register(SubCategory)
-
+admin.site.register(Category)
 class SubCategoryAdmin(admin.ModelAdmin):
     list_display = ('pk', 'name', 'description')
     ordering = ('-created_at',)
