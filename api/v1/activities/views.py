@@ -150,3 +150,201 @@ def view_wishlist(request):
             "message": str(e),
         }
         return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+# ---------cart view--------------
+
+
+
+
+
+
+
+@api_view(["POST"])
+def add_to_cart(request, pk):
+    try:
+        user = request.user
+        if Product.objects.filter(pk=pk).exists():
+            product = Product.objects.get(pk=pk)
+            
+            # Check if the product has enough quantity in stock
+            if ProductItem.objects.filter(product=product, quantity__gt=0).exists():
+                cart, created = Cart.objects.get_or_create(user=user)
+                
+                if not CartItem.objects.filter(cart=cart, product=product).exists():
+                    cart_item = CartItem.objects.create(
+                        cart=cart,
+                        product=product,
+                        price=product.price  # Set the price here based on your logic
+                    )
+                    cart.update_total_amount()  # Update the total amount
+                    response_data = {
+                        "StatusCode": 6000,
+                        "data": {
+                            "message": "Successfully added to cart"
+                        }
+                    }
+                else:
+                    response_data = {
+                        "StatusCode": 6001,
+                        "data": {
+                            "message": "Already in cart"
+                        }
+                    }
+            else:
+                response_data = {
+                    "StatusCode": 6002,
+                    "data": {
+                        "message": "Product out of stock"
+                    }
+                }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Product not found"
+                }
+            }
+
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["DELETE"])
+def remove_from_cart(request, pk):
+    try:
+        user = request.user
+        if Product.objects.filter(pk=pk).exists():
+            product = Product.objects.get(pk=pk)
+            cart = Cart.objects.get(user=user)
+
+            try:
+                cart_item = CartItem.objects.get(cart=cart, product=product)
+                cart_item.delete()
+                response_data = {
+                    "StatusCode": 6000,
+                    "data": {
+                        "message": "Successfully removed from cart"
+                    }
+                }
+            except CartItem.DoesNotExist:
+                response_data = {
+                    "StatusCode": 6002,
+                    "data": {
+                        "message": "Item does not exist in the cart"
+                    }
+                }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Product not found"
+                }
+            }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+
+@api_view(["GET"])
+def view_cart_items(request):
+    try:
+        user = request.user
+        cart_items = CartItem.objects.filter(cart__user=user)
+        
+        if not cart_items:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Cart is empty"
+                }
+            }
+        else:
+            serializer = CartItemSerializer(cart_items, many=True)
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "cart_items": serializer.data
+                }
+            }
+        
+        return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+        return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+@api_view(["PUT"])
+def edit_cart_item(request, pk):
+    try:
+        user = request.user
+        if Product.objects.filter(pk=pk).exists():
+            product = Product.objects.get(pk=pk)
+            cart = Cart.objects.get(user=user)
+
+            try:
+                cart_item = CartItem.objects.get(cart=cart, product=product)
+                new_quantity = request.data.get('quantity')  # Get the new quantity from the request data
+                
+                # Update the quantity if a new value is provided and it's greater than 0
+                if new_quantity and int(new_quantity) > 0:
+                    cart_item.quantity = new_quantity
+                    cart_item.save()
+
+                    response_data = {
+                        "StatusCode": 6000,
+                        "data": {
+                            "message": "Quantity updated successfully"
+                        }
+                    }
+                else:
+                    response_data = {
+                        "StatusCode": 6003,
+                        "data": {
+                            "message": "Invalid quantity provided"
+                        }
+                    }
+            except CartItem.DoesNotExist:
+                response_data = {
+                    "StatusCode": 6002,
+                    "data": {
+                        "message": "Item does not exist in the cart"
+                    }
+                }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Product not found"
+                }
+            }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)

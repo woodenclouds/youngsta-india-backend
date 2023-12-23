@@ -3,6 +3,10 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.auth.models import User
 from django.db import models
 from main.models import *
+from django.db import models
+from main.models import *
+from django.contrib.auth.models import Group
+from products.models import Product 
 
 
 PAYMENT_METHOD = [
@@ -86,3 +90,30 @@ class WishlistItem(BaseModel):
         return f"{self.user.username}'s wishlist item - {self.product.name}"
     
     
+
+
+# ----------cart model-------------------
+
+
+ # Update this import as per your actual setup
+
+class Cart(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    total_amount = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
+
+    def __str__(self):
+        return f"Cart for {self.user.username}"
+
+    def update_total_amount(self):
+        total = sum(item.price * item.quantity for item in self.cart_items.all())
+        self.total_amount = total
+        self.save()
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='cart_items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    price = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.product.name} in {self.cart.user.username}'s cart"

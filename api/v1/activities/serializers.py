@@ -14,3 +14,20 @@ class WishlistItemSerializer(serializers.ModelSerializer):
     def get_product(self,instance):
         product = instance.product.name
         return product
+    
+    
+    
+    
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartItem
+        fields = ['id', 'cart', 'product', 'quantity', 'price']
+
+class CartSerializer(serializers.ModelSerializer):
+    cart_items = CartItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Cart
+        fields = ['id', 'user', 'total_amount', 'cart_items']

@@ -7,3 +7,7 @@ class WishlistAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
     search_fields = ('pk', 'user', 'product')
 admin.site.register(WishlistItem,WishlistAdmin)
+
+
+admin.site.register(Cart)
+admin.site.register(CartItem)
