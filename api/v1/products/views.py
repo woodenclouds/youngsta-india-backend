@@ -10,19 +10,52 @@ from api.v1.main.decorater import *
 from api.v1.main.functions import *
 from products.models import *
 from django.db.models import Case, When, Value, IntegerField
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
 
 @api_view(["GET"])
 @group_required(["admin"])
 def admin_product(request):
     try:
-        isinstance = Product.objects.all()
+        instance = Product.objects.all()
+        paginator = Paginator(instance, 8)
+        page = request.GET.get('page')
+        try:
+            farmers = paginator.page(page)
+        except PageNotAnInteger:
+            farmers = paginator.page(1)
+        except EmptyPage:
+            farmers = paginator.page(paginator.num_pages)
+
+        next_page_number = 1
+        has_next_page = False
+        if farmers.has_next():
+            has_next_page = True
+            next_page_number = farmers.next_page_number()
+
+        has_previous_page = False
+        previous_page_number = 1
+        if farmers.has_previous():
+            has_previous_page = True
+            previous_page_number = farmers.previous_page_number()
         serialized = ProductAdminViewSerializer(
-            isinstance,
+            instance,
             many = True
         ).data
         response_data = {
             "StatusCode":6000,
-            "data":serialized
+            "data":serialized,
+            'pagination_data': {
+                'current_page': farmers.number,
+                'has_next_page': has_next_page,
+                'next_page_number': next_page_number,
+                'has_previous_page': has_previous_page,
+                'previous_page_number': previous_page_number,
+                'total_pages': paginator.num_pages,
+                'total_items': paginator.count,
+                'first_item': farmers.start_index(),
+                'last_item': farmers.end_index(),
+            },
         }
     except Exception as e:
         transaction.rollback()
@@ -323,7 +356,7 @@ def addProduct(request):
                 response_data = {
                     "StatusCode":6001,
                     "data":{
-                        "message":"product already exists"
+                        "message":"product already exists",
                     }
                 }
             if not error:
@@ -334,7 +367,9 @@ def addProduct(request):
                 response_data = {
                     "StatusCode":6000,
                     "data":{
-                        "message": f"{product.name} created succesfully"
+                        "message": f"{product.name} created succesfully",
+                        "product_name":product.name,
+                        "id":product.id
                     }
                 }
         else:
@@ -358,6 +393,71 @@ def addProduct(request):
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
+
+@api_view(["POST"])
+@group_required(["admin"])
+def addVarient(request,pk):
+    try:
+        transaction.set_autocommit(False)
+        error = False
+        message = ""
+        datas = request.data
+        if not Product.objects.filter(pk=pk).exists():
+            error =True
+            message = "Product dous not exist"
+        if not error:
+            product = Product.objects.get(pk=pk)
+            for data in datas:
+                images = data.get('images')
+                attributes = data.get('attributes')
+                print(attributes,"_____atri___obj")
+                product_varient = ProductVarient.objects.create(
+                    product = product,
+                    thumbnail = images[0]
+                )
+                for image in images:
+                    print(image,"______image")
+                    product_image = ProductImages.objects.create(
+                        image = image,
+                        product_varient = product_varient
+                    )
+
+                for attribute in attributes:
+                    print(attribute,"test______test")
+                    attribute_obj = Attribute.objects.create(
+                        attribute = attribute["attribute"],
+                        attribute_value = attribute["attribute_value"],
+                        quantity = attribute["quantity"]
+                    )
+            transaction.commit()
+            response_data={
+                "StatusCode":6000,
+                "data":{
+                    "message":"Succesfully created varient"
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode":6001,
+                "data":{
+                    "message":message
+                }
+            }
+    except Exception as e:
+        transaction.rollback()
+        errType = e.__class__.__name__
+        errors = {
+            errType: traceback.format_exc()
+        }
+        response_data = {
+            "status": 6001,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors
+        }
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 @api_view(["POST"])
 @group_required(["admin"])
@@ -762,19 +862,27 @@ def addSubcategory(request):
 
 @api_view(["GET"])
 @permission_classes((AllowAny,))
-def viewSubCategory(request):
+def viewSubCategory(request,pk):
     try:
-        instances = SubCategory.objects.filter(is_deleted=False)
-        serialized_instances = []
+        if Category.objects.filter(pk=pk).exists():
+            instances = SubCategory.objects.filter(category=pk)
+            serialized_instances = []
 
-        for instance in instances:
-            serialized_instance = ViewSubCategorySerializer(instance).data
-            serialized_instances.append(serialized_instance)
+            for instance in instances:
+                serialized_instance = ViewSubCategorySerializer(instance).data
+                serialized_instances.append(serialized_instance)
 
-        response_data = {
-            "StatusCode": 6000,
-            "data": serialized_instances
-        }
+            response_data = {
+                "StatusCode": 6000,
+                "data": serialized_instances
+            }
+        else:
+            {
+                "response_data":6001,
+                "data":{
+                    "message":"categor dous not exist"
+                }
+            }
     except Exception as e:
         transaction.rollback()
         errType = e.__class__.__name__

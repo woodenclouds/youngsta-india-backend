@@ -15,6 +15,7 @@ INSTALLED_APPS = [
     'rest_framework',
     "corsheaders",
     'drf_yasg',
+    'storages',
     # 'colorfield',
     # 'colorfield',
 
@@ -31,6 +32,7 @@ INSTALLED_APPS = [
     'products',
     'adds',
     'activities',
+    'marketing'
 ]
 
 
@@ -82,6 +84,8 @@ TEMPLATES = [
         },
     },
 ]
+
+
 WSGI_APPLICATION = 'server.wsgi.application'
 DATABASES = {
     'default': env.db()
@@ -102,6 +106,16 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
+
+AWS_STORAGE_BUCKET_NAME = 'youngsta'
+AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
+AWS_S3_REGION_NAME = 'eu-north-1'  # e.g., 'us-west-1'
+
+# Media files (uploaded by users)
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 STATIC_URL = '/static/'
@@ -114,5 +128,6 @@ if not DEBUG:
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR, "static"),
 )
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
