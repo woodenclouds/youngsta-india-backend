@@ -30,9 +30,8 @@ INSTALLED_APPS = [
     'accounts',
     'payments',
     'products',
-    'adds',
     'activities',
-    'marketing'
+    'marketing',
 ]
 
 
