@@ -243,8 +243,9 @@ def admin_signup(request):
         transaction.set_autocommit(False)
         serializer = SignupSerializers(data=request.data)
         if serializer.is_valid():
-            first_name = request.data["first_name"]
-            last_name = request.data["last_name"]
+            # first_name = request.data["first_name"]
+            # last_name = request.data["last_name"]
+            name = request.data["name"]
             email = request.data["email"]
             password = request.data["password"]
             if not User.objects.filter(username=email).exists():
@@ -255,8 +256,9 @@ def admin_signup(request):
                 enc_password = encrypt(password)
                 admin_profile = AdminProfile.objects.create(
                     user=user,
-                    first_name=first_name,
-                    last_name=last_name,
+                    # first_name=first_name,
+                    # last_name=last_name,
+                    name = name,
                     email = email,
                     password = enc_password
                 )
