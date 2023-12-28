@@ -179,10 +179,19 @@ class ProductItem(BaseModel):
     def __str__(self):
         return f"{self.product.name} + {self.color}"
     
+class ProductVarient(BaseModel):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, blank=True, null=True)
+    thumbnail = models.TextField()
+
+    class Meta:
+        db_table = "product_varient"
+        verbose_name = 'ProductVarient'
+        verbose_name_plural = 'ProductVarients'
+
 
 class ProductImages(BaseModel):
-    image = models.ImageField(upload_to='products/', null=True, blank=True)
-    product_item = models.ForeignKey(ProductItem, on_delete=models.CASCADE,blank=True,null=True )
+    image = models.TextField()
+    product_varient = models.ForeignKey(ProductVarient, on_delete=models.CASCADE,blank=True,null=True )
     primary = models.BooleanField(default=False,blank=True,null=True)
 
     class Meta:
@@ -196,9 +205,9 @@ class ProductImages(BaseModel):
 
 
 class Attribute(BaseModel):
-    title = models.CharField(max_length=100)
-    display_name = models.CharField(max_length=100)
-    values = models.JSONField(default=list)  
+    quantity = models.IntegerField(blank=True, null=True)
+    attribute = models.CharField(max_length=255, blank=True, null=True)
+    attribute_value = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         db_table = 'product_attributes'

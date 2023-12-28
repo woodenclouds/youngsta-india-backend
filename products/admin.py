@@ -8,7 +8,7 @@ admin.site.register(ProductTag)
 class ProductImageInline(admin.TabularInline):  # or StackedInline
     model = ProductImages
 
-@admin.register(ProductItem)
+@admin.register(ProductVarient)
 class ProductItemAdmin(admin.ModelAdmin):
     inlines = [ProductImageInline]
 
@@ -35,7 +35,7 @@ class BrandAdmin(admin.ModelAdmin):
 admin.site.register(Brand, BrandAdmin)
 
 class AtributeAdmin(admin.ModelAdmin):
-    list_display=('pk', 'title', )
+    list_display=('pk', 'quantity','attribute' ,'attribute_value')
 admin.site.register(Attribute, AtributeAdmin)
 
 
