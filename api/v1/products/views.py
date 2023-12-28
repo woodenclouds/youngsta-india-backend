@@ -55,7 +55,7 @@ def addCategory(request):
             cat_id = createsix()
 
             # Get the highest existing order
-            highest_order = Category.objects.aggregate(Max('orders'))['orders__max']
+            highest_order = Category.objects.aggregate(Max('position'))['position__max']
 
             # Set the order for the new category to be the next sequential number
             order = highest_order + 1 if highest_order is not None else 1
@@ -65,7 +65,7 @@ def addCategory(request):
                 description=description,
                 image=image,
                 cat_id=cat_id,
-                orders=order
+                position=order
             )
             transaction.commit()
             print(cat_id)
