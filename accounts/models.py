@@ -63,10 +63,10 @@ class UserProfile(BaseModel):
         ordering = ('created_at',)
 
     def __str__(self):
-        if self.name:
-            return self.name
+        if self.first_name:
+            return self.first_name
         else:
-            return self.phone
+            return self.phone_number
 
 
 class Address(models.Model):
@@ -90,7 +90,7 @@ class Cart(models.Model):
     total_amount = models.PositiveBigIntegerField(max_length=100,blank=True,null=True)
 
     def __str__(self):
-        return f"Cart for {self.user.name}"
+        return f"Cart for {self.user.first_name}"
     
     def update_total_price(self):
         total = sum(item.price * item.quantity for item in self.cartitem_set.all())
@@ -104,4 +104,4 @@ class CartItem(models.Model):
     price = models.PositiveBigIntegerField(max_length=100,blank=True,null=True)
 
     def __str__(self):
-        return f"{self.product.name} in {self.cart.user.username}'s cart"
+        return f"{self.product.name} in {self.cart.user.email}'s cart"
