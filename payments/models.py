@@ -45,3 +45,7 @@ class Transaction(BaseModel):
     
 
     
+# coins models
+# log
+# point amount boolean isactive or inactive
+# wallet

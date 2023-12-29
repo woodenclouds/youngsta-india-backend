@@ -47,3 +47,4 @@ class ProductAdmin(admin.ModelAdmin):
     get_brand_name.short_description = 'Brand'
 
 admin.site.register(Product, ProductAdmin)
+

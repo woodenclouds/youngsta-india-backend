@@ -459,6 +459,7 @@ def addVarient(request,pk):
 
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
+
 @api_view(["POST"])
 @group_required(["admin"])
 def addBrand(request):
@@ -1196,6 +1197,5 @@ def viewProduct(request, type):
         })
 
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
-
 
 
