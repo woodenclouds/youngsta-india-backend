@@ -42,6 +42,7 @@ class PurchaseAmount(BaseModel):
     total_amount = models.DecimalField(max_digits=10,decimal_places=2, blank=True, null=True)
     tax =  models.DecimalField(max_digits=10,decimal_places=2, blank=True, null=True)
     final_amount = models.DecimalField(max_digits=10,decimal_places=2, blank=True, null=True)
+    wallet_deduction = models.DecimalField(max_digits=10,decimal_places=2, blank=True, null=True)
     payment_method = models.CharField(choices=PAYMENT_METHOD, max_length=155, default='cod')
 
     # class Meta:

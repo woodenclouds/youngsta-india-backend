@@ -9,7 +9,7 @@ from .serializers import *
 from api.v1.main.decorater import *
 from api.v1.main.functions import *
 from products.models import *
-
+from payments.models import *
 
 
 
@@ -440,6 +440,154 @@ def purchase_items(request):
         }
 
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+# @api_view(["POST"])
+# def purchase_items(request):
+#     response_data = {}  
+#     try:
+#         user = request.user
+#         print(user)
+
+#         try:
+#             cart = Cart.objects.get(user=user)
+#             print(cart)
+#         except Cart.DoesNotExist:
+#             response_data = {
+#                 "status": 6001,
+#                 "message": "Cart not found",
+#             }
+#             return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+#         total_amount = cart.total_amount
+#         print(total_amount)
+#         serializer = PurchaseAmountSerializer(data=request.data)
+#         if serializer.is_valid():
+#             user_serializer = UserSerializer(user)
+#             serialized_user = user_serializer.data
+#             print("Serialized User:", serialized_user)
+#             payment_method = request.data["payment_method"]
+#             tax_amount = int(request.data["tax_amount"])
+
+#             # Check if the user wants to use the wallet
+#             use_wallet = request.data.get("use_wallet", False)
+#             wallet_deduction = 0
+
+#             if use_wallet:
+#                 # Check if the user has sufficient balance in the wallet
+#                 wallet_balance = user.wallet.balance
+#                 if wallet_balance > 0:
+#                     # Deduct from the user's wallet up to its balance
+#                     wallet_deduction = min(total_amount, wallet_balance)
+#                     user.wallet.balance -= wallet_deduction
+#                     user.wallet.save()
+
+#                     # Adjust the total amount
+#                     total_amount -= wallet_deduction
+
+#             # Final amount is calculated
+#             final_amount = total_amount + tax_amount
+#             purchase_amount = PurchaseAmount.objects.create(
+#                 user=user,
+#                 total_amount=total_amount,
+#                 tax=tax_amount,
+#                 final_amount=final_amount,
+#                 payment_method=payment_method,
+#                 wallet_deduction=wallet_deduction,
+#             )
+#             purchase_log = PurchaseLog.objects.create(
+#                 Purchases=purchase_amount
+#             )
+#             purchase = Purchase.objects.create(
+#                 user=user,
+#                 total_amount=total_amount
+#             )
+
+#             for cart_item in cart.cart_items.all():
+#                 purchase_item = PurchaseItems.objects.create(
+#                     purchase=purchase, 
+#                     product=cart_item.product,
+#                     quantity=cart_item.quantity,
+#                     price=cart_item.price,
+#                 )
+#                 try:
+#                     attribute = Attribute.objects.get(product_varient__product=cart_item.product)
+#                     attribute.quantity -= cart_item.quantity
+#                     attribute.save()
+#                 except Attribute.DoesNotExist:
+#                     response_data = {
+#                         "status": 6001,
+#                         "message": "Attribute does not exist"
+#                     }
+
+#             # Clear the user's cart after the purchase
+#             cart.cart_items.all().delete()
+#             cart.delete()
+#             response_data = {
+#                 "status": 6000,
+#                 "message": "Success",
+#                 "data": {
+#                     "user": user,  # This is likely the source of the error
+#                     "total": total_amount,
+#                     "tax_amount": tax_amount,
+#                     "Final Amount": final_amount,
+#                     "payment_method": payment_method,
+#                     "use_wallet": use_wallet,
+#                     "wallet_deduction": wallet_deduction,
+#                 }
+#             }
+#         else:
+#             response_data = {
+#                 "status": 6001,
+#                 "message": "Serializer validation failed",
+#                 "errors": serializer.errors
+#             }
+#             return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
+
+#     except Exception as e:
+#         response_data = {
+#             "status": 6001,
+#             "api": request.get_full_path(),
+#             "request": request.data,
+#             "message": str(e),
+#         }
+
+#     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+
+@api_view(["GET"])
+def viewPurchase(request):
+    try:
+        user = request.user
+        purchase_items = PurchaseItems.objects.filter(purchase__user=user)
+
+        if not purchase_items:
+            response_data = {
+                "StatusCode" : 6001,
+                "data" : {
+                    "message" : "Purchase Items Empty"
+                }
+            }
+        if purchase_items:
+            serializers = ViewPurchaseDeatils(purchase_items , many=True)
+            response_data = {
+                "StatusCode" :6000,
+                "data" : {
+                    "Purchased Item" : serializers.data
+                }
+
+            }
+            return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+        return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
         

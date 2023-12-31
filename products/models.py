@@ -3,6 +3,8 @@ from main.models import *
 from django.db.models import Max, Value
 import random 
 from django.utils.text import slugify
+from datetime import timedelta
+from django.utils import timezone
 
 # from colorfield.fields import ColorField
 
@@ -152,13 +154,13 @@ class Product(BaseModel):
     specs = models.TextField(blank=True, null=True)
     status = models.CharField(choices=PRODUCT_STATUS,default='stocking',blank=True,null=True)
     purchase_price = models.DecimalField(max_digits=8, decimal_places=2)
+    refferal_amount = models.DecimalField(max_digits=10, default=0, decimal_places=2)
+    #return_date = models.DateTimeField(db_index=True, auto_now_add=True)
     class Meta:
         db_table = 'product_product'
         managed = True
         verbose_name = 'Product'
         verbose_name_plural = 'Products'
-
-
 
     def __str__(self):
         return  self.name

@@ -51,3 +51,25 @@ class PurchaseAmountSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseAmount
         fields = ['id', 'total_amount', 'tax_amount', 'final_amount', 'payment_method']
+        
+# class UserSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = User
+#         fields = ['id', 'username', 'email']  # Add other fields as needed
+
+# class PurchaseAmountSerializer(serializers.ModelSerializer):
+#     tax_amount = serializers.IntegerField()
+#     payment_method = serializers.CharField()
+#     user = UserSerializer()  # Include the user information using UserSerializer
+
+#     class Meta:
+#         model = PurchaseAmount
+#         fields = ['id', 'total_amount', 'tax_amount', 'final_amount', 'payment_method', 'user']
+        
+
+class ViewPurchaseDeatils(serializers.ModelSerializer):
+    class Meta:
+        model = PurchaseItems
+        fields = ['id', 'product' , 'quantity', 'price' ]
+
+

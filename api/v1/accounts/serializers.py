@@ -8,6 +8,11 @@ class SignupSerializers(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField()
 
+class AdminSignupSerializers(serializers.Serializer):
+    name = serializers.CharField()
+    email = serializers.EmailField()
+    password = serializers.CharField()
+
 
 
 class VerifySerializers(serializers.Serializer):

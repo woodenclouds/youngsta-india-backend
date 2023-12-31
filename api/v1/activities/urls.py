@@ -18,6 +18,7 @@ urlpatterns = [
     re_path(r'^view_cart_items/$', views.view_cart_items, name="view_cart_items"),
 
     re_path(r'^purchase_items/$', views.purchase_items, name="purchase_items"),
+    re_path(r'^viewPurchase/$', views.viewPurchase, name="viewPurchase"),
 
 
 
