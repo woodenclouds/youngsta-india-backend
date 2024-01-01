@@ -55,6 +55,8 @@ class UserProfile(BaseModel):
             admin_group, _ = Group.objects.get_or_create(name='users')  # Fetch or create the 'users' group
             self.user.groups.add(admin_group)  # Add the user to the 'users' group
             self.user.save()
+            
+
 
     class Meta:
         db_table = "accounts_user_profile"
@@ -63,11 +65,12 @@ class UserProfile(BaseModel):
         ordering = ('created_at',)
 
     def __str__(self):
-        if self.first_name:
-            return self.first_name
-        else:
-            return self.phone_number
-
+          if self.first_name and self.last_name:
+              return f"{self.first_name} {self.last_name}"
+          elif self.phone_number:
+              return self.phone_number
+          else:
+              return "UserProfile"
 
 class Address(models.Model):
     street = models.CharField(max_length=100)
