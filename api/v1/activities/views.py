@@ -384,11 +384,15 @@ def purchase_items(request):
                 payment_method=payment_method,
                
             )
+           
             purchase_log = PurchaseLog.objects.create(
                 Purchases = purchase_amount
+
             )
+            user_address = Address.objects.filter(user=user.userprofile).first()
             purchase = Purchase.objects.create(
                 user = user,
+                address = user_address,
                 total_amount = total_amount
             )
 

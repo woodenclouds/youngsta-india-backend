@@ -288,7 +288,7 @@ def deleteCategory(request, pk):
                 default=Value(0),
                 output_field=IntegerField(),
             )
-            ).order_by('is_deleted_int', 'orders')
+            ).order_by('is_deleted_int', 'posiition')
 
         for i, current_category in enumerate(all_categories, start=1):
             current_category.position = i
@@ -807,7 +807,9 @@ def addSubcategory(request):
         if errors:
             response_data = {
                 "StatusCode": 6001,
-                "data": {"message": ", ".join(errors)}
+                "data": {
+                    "message": ", ".join(errors)
+                    }
             }
         else:
             name = request.data["name"]
@@ -837,12 +839,16 @@ def addSubcategory(request):
                 transaction.commit()
                 response_data = {
                     "StatusCode": 6000,
-                    "data": {"message": f"{sub_category.name} successfully created"}
+                    "data": {
+                        "message": f"{sub_category.name} successfully created"
+                        }
                 }
             else:
                 response_data = {
                     "StatusCode": 6001,
-                    "data": {"message": "Subcategory already exists"}
+                    "data": {
+                        "message": "Subcategory already exists"
+                        }
                 }
     except Exception as e:
         transaction.rollback()
@@ -863,29 +869,43 @@ def addSubcategory(request):
 
 @api_view(["GET"])
 @permission_classes((AllowAny,))
-def viewSubCategory(request,pk):
+def viewSubCategory(request, pk):
     try:
-        if Category.objects.filter(pk=pk).exists():
-            instances = SubCategory.objects.filter(category=pk)
-            serialized_instances = []
-
-            for instance in instances:
-                serialized_instance = ViewSubCategorySerializer(instance).data
-                serialized_instances.append(serialized_instance)
-
+        if pk == "all":
+            instances = SubCategory.objects.filter(is_deleted=False)
+            serialized_instances = [ViewSubCategorySerializer(instance).data for instance in instances]
             response_data = {
                 "StatusCode": 6000,
-                "data": serialized_instances
-            }
-        else:
-            {
-                "response_data":6001,
-                "data":{
-                    "message":"categor dous not exist"
+                "data": {
+                    "message": serialized_instances
                 }
             }
+        else:
+           # Check if the category exists in SubCategory table
+            if SubCategory.objects.filter(category=pk).exists():
+                instances = SubCategory.objects.filter(category=pk, is_deleted=False)
+                serialized_instances = []
+
+                for instance in instances:
+                    serialized_instance = ViewSubCategorySerializer(instance).data
+                    serialized_instances.append(serialized_instance)
+
+                response_data = {
+                    "StatusCode": 6000,
+                    "data": {
+                        "message": serialized_instances
+                    }
+                }
+            else:
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": {
+                        "message": "Category does not exist in SubCategory table"
+                    }
+                }
+
     except Exception as e:
-        transaction.rollback()
+
         errType = e.__class__.__name__
         errors = {
             errType: traceback.format_exc()
@@ -897,6 +917,7 @@ def viewSubCategory(request,pk):
             "message": str(e),
             "response": errors
         }
+
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 @api_view(["PUT", "PATCH"])
@@ -974,16 +995,28 @@ def deleteSubCategory(request, pk):
         subcategory = SubCategory.objects.get(pk=pk)
         subcategory.is_deleted = True
         subcategory.save()
+
+        # Update the order of all categories
+        all_subcategories = SubCategory.objects.annotate(
+            is_deleted_int=Case(When(is_deleted=True, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+            ).order_by('is_deleted_int', 'position')
+
+        for i, current_subcategory in enumerate(all_subcategories, start=1):
+            current_subcategory.position = i
+            current_subcategory.save()
         response_data = {
-            "StatusCode":  6000,
+            "StatusCode": 6000,
             "data" : {
-                "message" : f"{subcategory.name} deleted Successfully"
+                "message" : f"{subcategory.name} deleted successfully"
             }
         }
-    except SubCategory.DoesNotExist:
+    except Category.DoesNotExist:
         response_data = {
             "StatusCode": 6001,
-            "data": {"message": "Category not found"}
+            "data": {"message": "Sub Category not found"}
         }
     except Exception as e:
         response_data = {
@@ -993,6 +1026,7 @@ def deleteSubCategory(request, pk):
             "message": str(e),
             "response": {"error": "An error occurred while deleting the category"}
         }
+
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
@@ -1039,7 +1073,9 @@ def editSubCategoryPosition(request, pk):
             else:
                 response_data = {
                     "StatusCode": 6001,
-                    "data": {"message": "Invalid position value"}
+                    "data": {
+                        "message": "Invalid position value"
+                        }
                 }
         else:
             response_data = {
@@ -1049,7 +1085,9 @@ def editSubCategoryPosition(request, pk):
     except SubCategory.DoesNotExist:
         response_data = {
             "StatusCode": 6003,
-            "data": {"message": "Category not found"}
+            "data": {
+                "message": "Category not found"
+                }
         }
     except Exception as e:
         response_data = {

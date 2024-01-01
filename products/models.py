@@ -154,8 +154,7 @@ class Product(BaseModel):
     specs = models.TextField(blank=True, null=True)
     status = models.CharField(choices=PRODUCT_STATUS,default='stocking',blank=True,null=True)
     purchase_price = models.DecimalField(max_digits=8, decimal_places=2)
-    refferal_amount = models.DecimalField(max_digits=10, default=0, decimal_places=2)
-    #return_date = models.DateTimeField(db_index=True, auto_now_add=True)
+   
     class Meta:
         db_table = 'product_product'
         managed = True

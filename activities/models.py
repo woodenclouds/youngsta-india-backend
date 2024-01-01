@@ -7,7 +7,7 @@ from django.db import models
 from main.models import *
 from django.contrib.auth.models import Group
 from products.models import Product 
-
+from accounts.models import Address
 
 PAYMENT_METHOD = [
     ('cod', 'Cash on delivery'),
@@ -128,7 +128,7 @@ class CartItem(models.Model):
 
 class Purchase(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    #address = models.ForeignKey('accounts.Address' on_delete=models.CASCADE, related_name='address')
+    address = models.ForeignKey("accounts.Address", on_delete=models.CASCADE, related_name='purchases', blank=True, null=True)
     total_amount = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
     def __str__(self):
         return f"Purchase for {self.user.username}"
