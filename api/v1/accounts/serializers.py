@@ -2,11 +2,11 @@ from rest_framework import serializers
 from accounts.models import UserProfile, Address
 
 
-class SignupSerializers(serializers.Serializer):
-    first_name = serializers.CharField()
-    last_name = serializers.CharField()
-    email = serializers.EmailField()
-    password = serializers.CharField()
+# class SignupSerializers(serializers.Serializer):
+#     first_name = serializers.CharField()
+#     last_name = serializers.CharField()
+#     email = serializers.EmailField()
+#     password = serializers.CharField()
 
 class AdminSignupSerializers(serializers.Serializer):
     name = serializers.CharField()
@@ -33,7 +33,7 @@ class AddressSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     address = AddressSerializer(many=True, read_only=True)  # Assuming UserProfile can have multiple addresses
 
-    class Meta:
+    class Meta:          
         model = UserProfile
         fields = ('id', 'first_name', 'last_name', 'email', 'country_code', 'phone_number', 'password',
                   'is_verified', 'device_token', 'address')
