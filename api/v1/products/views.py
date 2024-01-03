@@ -159,23 +159,17 @@ def categories(request):
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
+
 @api_view(["PUT", "PATCH"])
 @group_required(["admin"])
 def editCategory(request, pk):
     try:
-        # Get the existing category instance
         category = Category.objects.get(id=pk)
-        print(category)
-        # Deserialize the request data
         serializer = EditCategorySerializer(category, data=request.data, partial=True)
+
         if serializer.is_valid():
-            name = request.data.get("name")
-            description = request.data.get("description")
-            image = request.data.get("image")
-            category.name = name
-            category.description = description
-            category.image = image
             serializer.save()
+
             response_data = {
                 "StatusCode": 6000,
                 "data": serializer.data,
@@ -204,6 +198,7 @@ def editCategory(request, pk):
             "response": errors
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
 
 
 @api_view(["PUT", "PATCH"])
@@ -288,7 +283,7 @@ def deleteCategory(request, pk):
                 default=Value(0),
                 output_field=IntegerField(),
             )
-            ).order_by('is_deleted_int', 'posiition')
+            ).order_by('is_deleted_int', 'position')
 
         for i, current_category in enumerate(all_categories, start=1):
             current_category.position = i
@@ -866,12 +861,13 @@ def addSubcategory(request):
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
-
 @api_view(["GET"])
 @permission_classes((AllowAny,))
-def viewSubCategory(request, pk):
+def viewSubCategory(request, type):
     try:
-        if pk == "all":
+        response_data = {}
+
+        if type == "all":
             instances = SubCategory.objects.filter(is_deleted=False)
             serialized_instances = [ViewSubCategorySerializer(instance).data for instance in instances]
             response_data = {
@@ -880,32 +876,33 @@ def viewSubCategory(request, pk):
                     "message": serialized_instances
                 }
             }
+        elif SubCategory.objects.filter(pk=type, is_deleted=False).exists():
+            instances = SubCategory.objects.filter(pk=type, is_deleted=False)
+            serialized_instances = [ViewSubCategorySerializer(instance).data for instance in instances]
+            response_data["sub_category_exists"] = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": serialized_instances
+                }
+            }
+        elif SubCategory.objects.filter(category=type, is_deleted=False).exists():
+            instances = SubCategory.objects.filter(category=type, is_deleted=False)
+            serialized_instances = [ViewSubCategorySerializer(instance).data for instance in instances]
+            response_data["sub_category_belongs_to_category"] = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": serialized_instances
+                }
+            }
         else:
-           # Check if the category exists in SubCategory table
-            if SubCategory.objects.filter(category=pk).exists():
-                instances = SubCategory.objects.filter(category=pk, is_deleted=False)
-                serialized_instances = []
-
-                for instance in instances:
-                    serialized_instance = ViewSubCategorySerializer(instance).data
-                    serialized_instances.append(serialized_instance)
-
-                response_data = {
-                    "StatusCode": 6000,
-                    "data": {
-                        "message": serialized_instances
-                    }
+            response_data["invalid_condition"] = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Invalid condition or Sub Category does not exist"
                 }
-            else:
-                response_data = {
-                    "StatusCode": 6001,
-                    "data": {
-                        "message": "Category does not exist in SubCategory table"
-                    }
-                }
+            }
 
     except Exception as e:
-
         errType = e.__class__.__name__
         errors = {
             errType: traceback.format_exc()
@@ -928,47 +925,21 @@ def editSubCategory(request, pk):
         serializer = EditSubCategorySerializer(subcategory, data=request.data, partial=True)
         
         if serializer.is_valid():
-            name = request.data.get("name")
-            description = request.data.get("description")
-            category_id = request.data.get("category")
-            parent_id = request.data.get("parent")
-
-            try:
-                category = Category.objects.get(id=category_id)
-            except Category.DoesNotExist:
-                return Response({
-                    "app_data": {
-                        "StatusCode": 6002,
-                        "data": {"message": "Category not found"}
-                    }
-                }, status=status.HTTP_404_NOT_FOUND)
-
-            try:
-                parent_subcategory = SubCategory.objects.get(id=parent_id)
-            except SubCategory.DoesNotExist:
-                return Response({
-                    "app_data": {
-                        "StatusCode": 6002,
-                        "data": {"message": "Parent SubCategory not found"}
-                    }
-                }, status=status.HTTP_404_NOT_FOUND)
-
-            subcategory.name = name
-            subcategory.description = description
-            subcategory.category = category
-            subcategory.parent = parent_subcategory
-            subcategory.save()
+            serializer.save()
 
             response_data = {
                 "StatusCode": 6000,
                 "data": serializer.data,
                 "message": "Subcategory updated successfully"
             }
+
+        # Handle validation errors
         else:
             response_data = {
                 "StatusCode": 6001,
-                "data": generate_serializer_errors(serializer.errors)
+                "data": serializer.errors
             }
+
     except SubCategory.DoesNotExist:
         response_data = {
             "StatusCode": 6002,
@@ -987,6 +958,8 @@ def editSubCategory(request, pk):
             "response": errors
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
 
 @api_view(["DELETE"])
 @group_required(["admin"])
@@ -1079,12 +1052,12 @@ def editSubCategoryPosition(request, pk):
                 }
         else:
             response_data = {
-                "StatusCode": 6002,
+                "StatusCode": 6001,
                 "data": generate_serializer_errors(serializer.errors)
             }
     except SubCategory.DoesNotExist:
         response_data = {
-            "StatusCode": 6003,
+            "StatusCode": 6001,
             "data": {
                 "message": "Category not found"
                 }
@@ -1227,7 +1200,7 @@ def viewProduct(request, type):
             errType: traceback.format_exc()
         }
         response_data.update({
-            "status": 0,
+            "status": 6001,
             "api": request.get_full_path(),
             "request": request.data,
             "message": str(e),
@@ -1237,3 +1210,58 @@ def viewProduct(request, type):
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
+@api_view(["GET"])
+@permission_classes((AllowAny,))
+def product_list_by_price_range(request):
+    try:
+        filter_serializer = ProductFilterSerializer(data=request.GET)
+        filter_serializer.is_valid(raise_exception=True)
+
+        min_price = filter_serializer.validated_data.get('min_price')
+        max_price = filter_serializer.validated_data.get('max_price')
+
+        print(f"Received min_price: {min_price}, max_price: {max_price}")
+
+        if min_price is not None and max_price is not None:
+            products = Product.objects.filter(purchase_price__gte=min_price, purchase_price__lte=max_price)
+
+            serializer = ProductListByPurchasePriceSerializer({'message': products})
+            response_data = {
+                "StatusCode": 6000,
+                "message" : {
+                    "data": serializer.data
+                }
+                
+            }
+
+            return Response(response_data, status=status.HTTP_200_OK)
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                'data': {'error': 'Provide both min_price and max_price parameters'}
+            }
+            return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+    except serializers.ValidationError as e:
+        error_message = f"Invalid parameter: {e}"
+        response_data = {
+            "StatusCode": 6001,
+            'data': {'error': error_message}
+        }
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        errType = e.__class__.__name__
+        errors = {
+            errType: str(e),
+            'traceback': traceback.format_exc()
+        }
+
+        response_data = {
+            "status": 6000,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "response": errors
+        }
+
+        return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

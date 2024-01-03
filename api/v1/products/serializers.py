@@ -100,6 +100,19 @@ class AddCategorySerializer(serializers.Serializer):
     image = serializers.CharField()
 
 
+class PartialUpdateCategory:
+    def update(self, instance, validated_data):
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+        instance.save()
+        return instance
+
+class EditCategorySerializer(PartialUpdateCategory, serializers.Serializer): 
+    name = serializers.CharField()
+    description = serializers.CharField()
+    image = serializers.CharField()
+
+
 class AddSubCategorySerializer(serializers.Serializer):
     name = serializers.CharField()
     description = serializers.CharField()
@@ -117,47 +130,27 @@ class AddProductItemSerializer(serializers.Serializer):
 
 
 
-class EditCategorySerializer(serializers.Serializer): 
-    name = serializers.CharField()
-    description = serializers.CharField()
-    image = serializers.CharField()
-    class Meta:
-        model = Category
-        fields = ['name', 'description', 'image']
-
+class PartialUpdateMixin:
     def update(self, instance, validated_data):
-        instance.name = validated_data.get('name', instance.name)
-        instance.description = validated_data.get('description', instance.description)
-        instance.image = validated_data.get('image', instance.image)
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
         instance.save()
         return instance
-    
-class EditSubCategorySerializer(serializers.ModelSerializer):
+
+class EditSubCategorySerializer(PartialUpdateMixin, serializers.ModelSerializer):
     name = serializers.CharField()
     description = serializers.CharField()
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), allow_null=True, required=False)
+    parent = serializers.PrimaryKeyRelatedField(queryset=SubCategory.objects.all(), allow_null=True, required=False)
 
     class Meta:
         model = SubCategory
         fields = ['name', 'description', 'category', 'parent']
 
-    def update(self, instance, validated_data):
-        instance.name = validated_data.get('name', instance.name)
-        instance.description = validated_data.get('description', instance.description)
 
-        # 'category' and 'parent' should be instances of Category and SubCategory respectively
-        category_data = validated_data.get('category', None)
-        parent_data = validated_data.get('parent', None)
 
-        if category_data:
-            category_instance = Category.objects.get(name=category_data)
-            instance.category = category_instance
 
-        if parent_data:
-            parent_instance = SubCategory.objects.get(name=parent_data)
-            instance.parent = parent_instance
 
-        instance.save()
-        return instance
     
 
 class EditCategoryPositionSerializer(serializers.ModelSerializer):
@@ -261,4 +254,14 @@ class ProductViewSerializer(serializers.ModelSerializer):
         
     
 
-       
+class ProductFilterSerializer(serializers.Serializer):
+    min_price = serializers.DecimalField(max_digits=8, decimal_places=2, required=False, allow_null=True)
+    max_price = serializers.DecimalField(max_digits=8, decimal_places=2, required=False, allow_null=True)
+
+class ProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = '__all__'
+
+class ProductListByPurchasePriceSerializer(serializers.Serializer):
+    message = ProductSerializer(many=True)

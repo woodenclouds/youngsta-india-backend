@@ -11,9 +11,11 @@ urlpatterns = [
     re_path(r'^category/$', views.categories, name="categories"),
     re_path(r'^brands/$', views.brands, name="brands"),
     re_path(r'^viewproduct/(?P<type>.*)/$', views.viewProduct, name="viewProduct"),
-    re_path(r'^sub-category/(?P<pk>.*)/$', views.viewSubCategory, name="sub-categories"),
+    re_path(r'^view-sub-category/(?P<type>.*)/$', views.viewSubCategory, name="sub-categories"),
     re_path(r'^edit-categoryposition/(?P<pk>.*)/$', views.editCategoryPosition, name="editCategoryPosition"),
     re_path(r'^edit-subcategoryposition/(?P<pk>.*)/$', views.editSubCategoryPosition, name="editCategoryPosition"),
+    re_path(r'^filter_products_by_price/$', views.product_list_by_price_range, name="product_list_by_price_range"),
+
 
 
     # ---------------admin-------------
