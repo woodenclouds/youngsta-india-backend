@@ -127,7 +127,8 @@ def verify(request):
                         response_data = {
                             "StatusCode":6000,
                             "data":{
-                                "name":profile.name,
+                                "first_name":profile.first_name,
+                                "last_name":profile.last_name,
                                 "email":profile.email,
                                 "access_token": str(refresh.access_token),
                                 "refresh_token": str(refresh)
@@ -243,8 +244,7 @@ def admin_signup(request):
         transaction.set_autocommit(False)
         serializer = SignupSerializers(data=request.data)
         if serializer.is_valid():
-            first_name = request.data["first_name"]
-            last_name = request.data["last_name"]
+            name = request.data["name"]
             email = request.data["email"]
             password = request.data["password"]
             if not User.objects.filter(username=email).exists():
@@ -255,8 +255,7 @@ def admin_signup(request):
                 enc_password = encrypt(password)
                 admin_profile = AdminProfile.objects.create(
                     user=user,
-                    first_name=first_name,
-                    last_name=last_name,
+                    name=name,
                     email = email,
                     password = enc_password
                 )
@@ -345,6 +344,32 @@ def admin_login(request):
                 "StatusCode": 6001,
                 "data": serializer.errors
             }
+    except Exception as e:
+        print("helloworld")
+        response_data = {
+            "StatusCode": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+        return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@group_required(["admin"])
+def costemers(request):
+    try :
+        instance = UserProfile.objects.all()
+        serialized = ViewCostomerSerializer(
+            instance, many=True, context={'request': request}
+        ).data
+        response_data = {
+            "StatusCode":6000,
+            "data":serialized
+        }
+     
     except Exception as e:
         print("helloworld")
         response_data = {

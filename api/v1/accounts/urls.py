@@ -15,4 +15,6 @@ urlpatterns = [
     re_path(r'^admin/signup/$', views.admin_signup, name="admin_signup"),
     re_path(r'^admin/login/$', views.admin_login, name="admin_login"),
 
+    re_path(r'^admin/costomers/$', views.costemers, name="admin_costomers"),
+
 ]

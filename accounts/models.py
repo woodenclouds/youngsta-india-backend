@@ -63,8 +63,8 @@ class UserProfile(BaseModel):
         ordering = ('created_at',)
 
     def __str__(self):
-        if self.name:
-            return self.name
+        if self.first_name:
+            return self.first_name
         else:
             return self.phone
 

@@ -10,6 +10,7 @@ from api.v1.main.decorater import *
 from api.v1.main.functions import *
 from products.models import *
 from django.db.models import Case, When, Value, IntegerField
+from rest_framework import generics
 
 @api_view(["GET"])
 @group_required(["admin"])
@@ -55,7 +56,7 @@ def addCategory(request):
             cat_id = createsix()
 
             # Get the highest existing order
-            highest_order = Category.objects.aggregate(Max('orders'))['orders__max']
+            highest_order = Category.objects.aggregate(Max('position'))['position__max']
 
             # Set the order for the new category to be the next sequential number
             order = highest_order + 1 if highest_order is not None else 1
@@ -65,7 +66,7 @@ def addCategory(request):
                 description=description,
                 image=image,
                 cat_id=cat_id,
-                orders=order
+                position=order
             )
             transaction.commit()
             print(cat_id)
@@ -334,7 +335,11 @@ def addProduct(request):
                 response_data = {
                     "StatusCode":6000,
                     "data":{
-                        "message": f"{product.name} created succesfully"
+                        "message": f"{product.name} created succesfully",
+                        "product":{
+                            "id":product.id,
+                            "name":product.name,
+                        }
                     }
                 }
         else:
@@ -690,7 +695,7 @@ def addSubcategory(request):
         transaction.set_autocommit(False)
         serialized = AddSubCategorySerializer(data=request.data)
         category_id = request.data["category"]
-        parent_id = request.data.get("parent")  # Use get to avoid KeyError if "parent" is not present
+        parent_id = request.data["parent_id"]
 
         errors = []
 
@@ -700,8 +705,12 @@ def addSubcategory(request):
         if not Category.objects.filter(pk=category_id).exists():
             errors.append("Category does not exist.")
 
+        parent = None  # Default value for parent
+
         if parent_id and not SubCategory.objects.filter(pk=parent_id).exists():
             errors.append("Parent SubCategory does not exist.")
+        elif parent_id:
+            parent = SubCategory.objects.get(pk=parent_id)
 
         if errors:
             response_data = {
@@ -713,15 +722,7 @@ def addSubcategory(request):
             description = request.data["description"]
             category = Category.objects.get(pk=category_id)
 
-            if parent_id:
-                parent = SubCategory.objects.get(pk=parent_id)
-            else:
-                parent = None
-
-            # Get the highest existing position for SubCategory
             highest_position = SubCategory.objects.aggregate(Max('position'))['position__max']
-
-            # Set the position for the new SubCategory to be the next sequential number
             position = highest_position + 1 if highest_position is not None else 1
 
             if not SubCategory.objects.filter(name=name, category=category).exists():
@@ -730,7 +731,7 @@ def addSubcategory(request):
                     description=description,
                     category=category,
                     parent=parent,
-                    position=position
+                    position=position,
                 )
 
                 transaction.commit()
@@ -760,20 +761,54 @@ def addSubcategory(request):
 
 
 
+
 @api_view(["GET"])
 @permission_classes((AllowAny,))
-def viewSubCategory(request):
+def viewSubCategory(request, pk):
     try:
-        instances = SubCategory.objects.filter(is_deleted=False)
-        serialized_instances = []
+        if Category.objects.filter(pk=pk).exists():
+            parent_id = request.GET.get("parent_id")  # Get the parent_id from query params
+            if parent_id:
+                instances = SubCategory.objects.filter(category=pk, parent=parent_id)
+            else:
+                instances = SubCategory.objects.filter(category=pk, order=0)
 
-        for instance in instances:
-            serialized_instance = ViewSubCategorySerializer(instance).data
-            serialized_instances.append(serialized_instance)
+            serialized_instances = [
+                ViewSubCategorySerializer(instance).data for instance in instances
+            ]
 
+            response_data = {
+                "StatusCode": 6000,
+                "data": serialized_instances
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Category does not exist"
+                }
+            }
+    except Exception as e:
+        transaction.rollback()
+        errType = e.__class__.__name__
+        errors = {
+            errType: traceback.format_exc()
+        }
         response_data = {
-            "StatusCode": 6000,
-            "data": serialized_instances
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@permission_classes((AllowAny,))
+def viewSubCategoryTree(request):
+    try:
+        response_data={
+
         }
     except Exception as e:
         transaction.rollback()
@@ -1090,4 +1125,31 @@ def viewProduct(request, type):
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
+@api_view(['GET'])
+@permission_classes((AllowAny,))
+def subcategory_tree(request, pk):
+    if Category.objects.filter(pk=pk).exists():
+        category = Category.objects.get(pk=pk)
+        categories = SubCategory.objects.filter(parent__isnull=True, category=category)
 
+        def get_children(parent):
+            children = SubCategory.objects.filter(parent=parent)
+            if children:
+                return [{'id': child.id, 'name': child.name, 'description': child.description, 'children': get_children(child)} for child in children]
+            return []
+
+        serialized_categories = [{'id': category.id, 'name': category.name, 'description': category.description, 'children': get_children(category)} for category in categories]
+
+        response_data = {
+            "StatusCode": 6000,
+            "data": serialized_categories
+        }
+        return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+    else:
+        response_data = {
+            "StatusCode": 6001,
+            "data": {
+                "message": "Category does not exist"
+            }
+        }
+        return Response({'app_data': response_data}, status=status.HTTP_404_NOT_FOUND)

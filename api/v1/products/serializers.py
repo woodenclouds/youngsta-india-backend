@@ -259,6 +259,14 @@ class ProductViewSerializer(serializers.ModelSerializer):
         return name
 
         
-    
+class SubCategorySerializer(serializers.ModelSerializer):
+    children = serializers.SerializerMethodField()
 
-       
+    class Meta:
+        model = SubCategory
+        fields = ['id', 'name', 'description', 'children']
+
+    def get_children(self, obj):
+        children = SubCategory.objects.filter(parent=obj)
+        serializer = SubCategorySerializer(children, many=True)
+        return serializer.data
