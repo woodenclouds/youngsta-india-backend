@@ -19,14 +19,29 @@ class ViewCategorySerializer(serializers.ModelSerializer):
             'image'
         )
 
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ('name',)
+
+class SubCategoryParent(serializers.ModelSerializer):
+    class Meta:
+        model = SubCategory
+        fields = ('name',)
+
 class ViewSubCategorySerializer(serializers.ModelSerializer):
+    category = CategorySerializer()
+    parent= SubCategoryParent()
+
     class Meta:
         model = SubCategory
         fields = (
             'id',
             'name',
             'description',
-            'category'
+            'category',
+            'parent'
         )
 
 class ProductAdminViewSerializer(serializers.ModelSerializer):

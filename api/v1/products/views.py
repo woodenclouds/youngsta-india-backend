@@ -778,15 +778,14 @@ def deleteAttribute(request, pk):
 
 #-----------------Sub Category ----------------------------------------------------------------
 
-
 @api_view(["POST"])
 @group_required(["admin"])
-def addSubcategory(request):
+def addSubcategory(request, data=None):
     try:
         transaction.set_autocommit(False)
         serialized = AddSubCategorySerializer(data=request.data)
         category_id = request.data["category"]
-        parent_id = request.data.get("parent")  # Use get to avoid KeyError if "parent" is not present
+        parent_id = request.data.get("parent")
 
         errors = []
 
@@ -816,13 +815,13 @@ def addSubcategory(request):
             else:
                 parent = None
 
-            # Get the highest existing position for SubCategory
-            highest_position = SubCategory.objects.aggregate(Max('position'))['position__max']
+            # Get the highest existing position for SubCategory under the same parent
+            highest_position = SubCategory.objects.filter(parent=parent).aggregate(Max('position'))['position__max']
 
             # Set the position for the new SubCategory to be the next sequential number
             position = highest_position + 1 if highest_position is not None else 1
 
-            if not SubCategory.objects.filter(name=name, category=category).exists():
+            if not SubCategory.objects.filter(name=name, category=category, parent=parent).exists():
                 sub_category = SubCategory.objects.create(
                     name=name,
                     description=description,
@@ -838,6 +837,13 @@ def addSubcategory(request):
                         "message": f"{sub_category.name} successfully created"
                         }
                 }
+
+                # Recursive call to handle adding multiple levels of subcategories
+                if 'subcategories' in request.data:
+                    for subcategory_data in request.data['subcategories']:
+                        subcategory_data['category'] = category_id
+                        subcategory_data['parent'] = sub_category.id
+                        addSubcategory(request=request, data=subcategory_data)
             else:
                 response_data = {
                     "StatusCode": 6001,
@@ -859,6 +865,7 @@ def addSubcategory(request):
             "response": errors
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
 
 
 @api_view(["GET"])
