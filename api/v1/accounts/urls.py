@@ -1,6 +1,5 @@
 from django.urls import path, re_path
-from rest_framework_simplejwt.views import (TokenObtainPairView,
-                                            TokenRefreshView)
+from rest_framework_simplejwt.views import (TokenObtainPairView, TokenRefreshView)
 from . import views
 
 app_name = "api_v1_accounts"
@@ -15,9 +14,14 @@ urlpatterns = [
     re_path(r'^change_primary_address/(?P<address_id>.*)/$', views.change_primary_address, name="change_primary_address"),
     re_path(r'^edit_address/(?P<address_id>.*)/$', views.edit_address, name="edit_addresss"),
     re_path(r'^delete_address/(?P<address_id>.*)/$', views.delete_address, name="delete_address"),
+    re_path(r'^viewstaff/$', views.viewstaff, name="viewstaff"),
 
     # -------------admin---------------------
     re_path(r'^admin/signup/$', views.admin_signup, name="admin_signup"),
     re_path(r'^admin/login/$', views.admin_login, name="admin_login"),
+    re_path(r'^admin/add-staff/$', views.addStaff, name="add-staff"),
+    re_path(r'^admin/edit-staff/(?P<pk>.*)/$', views.edit_staff, name="edit-staff"),
+    re_path(r'^admin/delete-staff/(?P<pk>.*)/$', views.delete_staff, name="delete-staff"),
+
 
 ]

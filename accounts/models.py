@@ -1,6 +1,12 @@
 from django.db import models
 from main.models import *
 from django.contrib.auth.models import Group
+from django.contrib.auth.models import User
+
+STAFF_TYPE = [
+    ('manager', 'Manager'),
+    ('staff','staff'),
+]
 
 
 class AdminProfile(BaseModel):
@@ -111,3 +117,17 @@ class Address(models.Model):
 
 #     def __str__(self):
 #         return f"{self.product.name} in {self.cart.user.username}'s cart"
+
+
+
+
+class Staff(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    fullname = models.CharField(max_length=100)
+    email = models.CharField(max_length=100)
+    password = models.TextField(blank=True, null=True)
+    type = models.CharField(max_length=100, choices=STAFF_TYPE, blank=True, null=True, default='staff')
+
+
+    def __str__(self):
+        return f"{self.fullname} - {self.type}"

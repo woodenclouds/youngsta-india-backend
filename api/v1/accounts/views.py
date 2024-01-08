@@ -487,7 +487,7 @@ def edit_address(request, address_id):
                 }
             else:
                 response_data = {
-                    "StatusCode": 400,
+                    "StatusCode": 6001,
                     "data": serializer.errors
                 }
         else:
@@ -554,3 +554,176 @@ def delete_address(request, address_id):
         }
 
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+
+
+@api_view(["POST"])
+@group_required(["admin"])
+def addStaff(request):
+    try:
+        user = request.user
+        transaction.set_autocommit(False)
+        serialized_data = AddStaffSerializer(data=request.data)
+        
+        if serialized_data.is_valid():
+            fullname = request.data['fullname']
+            email = request.data['email']
+            password = request.data['password']
+            type = request.data['type']
+            password = request.data['password']
+            enc_password = encrypt(password)
+            
+            # Create Staff instance
+            staff = Staff.objects.create(
+                user = user,
+                fullname=fullname,
+                email=email,
+                password=enc_password,
+                type=type
+            )
+            # Serialize the created staff data
+            staff_data = AddStaffSerializer(staff).data
+            
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": "Staff added successfully",
+                    "staff": staff_data
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": serialized_data.errors
+            }
+
+    except Exception as e:
+        transaction.rollback()
+        errType = e.__class__.__name__
+        errors = {
+            errType: traceback.format_exc()
+        }
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors
+        }
+    finally:
+        transaction.commit()
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+
+
+@api_view(["PUT", "PATCH"])
+@group_required(["admin"])
+def edit_staff(request, pk):
+    try:
+        staff = Staff.objects.get(pk=pk)
+        if staff:
+            serializer = StaffSerializer(staff, data=request.data, partial=True)
+            print(serializer)
+            if serializer.is_valid():
+                # Use the serializer's update method to selectively update fields
+                serializer.update(staff, serializer.validated_data)
+
+                response_data = {
+                    "StatusCode": 6000,
+                    "data": {
+                        "message": "Staff details updated successfully",
+                        "data": serializer.data
+                    }
+                }
+            else:
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": serializer.errors  # Include serializer errors in the response
+                }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Staff not found"
+                }
+            }
+
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e)
+        }
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+
+@api_view(["GET"])
+@permission_classes((AllowAny,))
+def viewstaff(request):
+    try:
+        instances = Staff.objects.all()
+        serialized_instances = []
+
+        for instance in instances:
+            if instance.is_deleted == False: 
+                serialized_instances.append(StaffSerializer(instance).data)
+
+        response_data = {
+            "StatusCode": 6000,
+            "data": serialized_instances
+        }
+    except Exception as e:
+        transaction.rollback()
+        errType = e._class.name_
+        errors = {
+            errType: traceback.format_exc()
+        }
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+
+@api_view(["GET"])
+@group_required(["admin"])
+def delete_staff(request, pk):
+    try:
+        if Staff.objects.filter(pk=pk).exists():
+            staff_detail = Staff.objects.get(pk=pk)
+            staff_detail.delete()
+            response_data = {
+                "StatusCode": 6000,
+                "message": "Staff deleted successfully"
+            }
+        else:
+            response_data={
+                "StatusCode":6001,
+                "data":{
+                    "message":"staff not found"
+                }
+            }
+    except Staff.DoesNotExist:
+        response_data = {
+            "StatusCode": 6001,
+            "message": "Staff does not exist"
+        }
+    except Exception as e:
+        response_data = {
+            "StatusCode": 6001,
+            "message": f"An error occurred: {str(e)}"
+        }
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+

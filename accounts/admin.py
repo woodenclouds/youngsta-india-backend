@@ -5,3 +5,7 @@ from .models import *
 admin.site.register(AdminProfile)
 admin.site.register(UserProfile)
 admin.site.register(Address)
+
+class StaffAdmin(admin.ModelAdmin):
+    list_display = ('pk', 'fullname', 'email', 'type')
+admin.site.register(Staff, StaffAdmin)
