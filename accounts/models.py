@@ -12,8 +12,6 @@ STAFF_TYPE = [
 class AdminProfile(BaseModel):
     name = models.CharField(max_length=155, blank=True, null=True)
     email = models.EmailField(max_length=155, blank=True, null=True)
-    country_code = models.CharField(max_length=5)  # Adjust max_length as per your requirements
-    phone_number = models.CharField(max_length=15) 
     password = models.TextField(blank=True, null=True)
     user = models.OneToOneField("auth.User", on_delete=models.CASCADE)
     device_token = models.TextField(blank=True)
@@ -78,7 +76,7 @@ class UserProfile(BaseModel):
           else:
               return "UserProfile"
 
-class Address(models.Model):
+class Address(BaseModel):
     street = models.CharField(max_length=100)
     city = models.CharField(max_length=50)
     state = models.CharField(max_length=50)

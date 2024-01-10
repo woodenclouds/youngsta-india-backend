@@ -103,7 +103,7 @@ class WishlistItem(BaseModel):
 
  # Update this import as per your actual setup
 
-class Cart(models.Model):
+class Cart(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     total_amount = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
 
@@ -115,7 +115,7 @@ class Cart(models.Model):
         self.total_amount = total
         self.save()
 
-class CartItem(models.Model):
+class CartItem(BaseModel):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='cart_items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)

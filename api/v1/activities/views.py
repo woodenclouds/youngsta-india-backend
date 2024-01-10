@@ -309,13 +309,19 @@ def edit_cart_item(request, pk):
                 
                 # Update the quantity if a new value is provided and it's greater than 0
                 if new_quantity and int(new_quantity) > 0:
+                    old_quantity = cart_item.quantity  # Get the old quantity
                     cart_item.quantity = new_quantity
                     cart_item.save()
 
+                    # Calculate the difference in quantity and update the total amount
+                    quantity_difference = int(new_quantity) - old_quantity
+                    cart.total_amount += (quantity_difference * product.price)
+                    cart.save()
+                    
                     response_data = {
                         "StatusCode": 6000,
                         "data": {
-                            "message": "Quantity updated successfully"
+                            "message": "Quantity updated successfully. Total amount updated accordingly."
                         }
                     }
                 else:
