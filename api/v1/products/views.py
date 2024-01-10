@@ -1272,3 +1272,6 @@ def product_list_by_price_range(request):
         }
 
         return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+
