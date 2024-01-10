@@ -3,6 +3,8 @@ from main.models import *
 from django.db.models import Max, Value
 import random 
 from django.utils.text import slugify
+from datetime import timedelta
+from django.utils import timezone
 
 # from colorfield.fields import ColorField
 
@@ -152,6 +154,7 @@ class Product(BaseModel):
     specs = models.TextField(blank=True, null=True)
     status = models.CharField(choices=PRODUCT_STATUS,default='stocking',blank=True,null=True)
     purchase_price = models.DecimalField(max_digits=8, decimal_places=2)
+   
     class Meta:
         db_table = 'product_product'
         managed = True
@@ -179,10 +182,19 @@ class ProductItem(BaseModel):
     def __str__(self):
         return f"{self.product.name} + {self.color}"
     
+class ProductVarient(BaseModel):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, blank=True, null=True)
+    thumbnail = models.TextField()
+
+    class Meta:
+        db_table = "product_varient"
+        verbose_name = 'ProductVarient'
+        verbose_name_plural = 'ProductVarients'
+
 
 class ProductImages(BaseModel):
-    image = models.ImageField(upload_to='products/', null=True, blank=True)
-    product_item = models.ForeignKey(ProductItem, on_delete=models.CASCADE,blank=True,null=True )
+    image = models.TextField()
+    product_varient = models.ForeignKey(ProductVarient, on_delete=models.CASCADE,blank=True,null=True )
     primary = models.BooleanField(default=False,blank=True,null=True)
 
     class Meta:
@@ -192,13 +204,11 @@ class ProductImages(BaseModel):
 
 
 # --------------model for attributes-------------
-
-
-
 class Attribute(BaseModel):
-    title = models.CharField(max_length=100)
-    display_name = models.CharField(max_length=100)
-    values = models.JSONField(default=list)  
+    product_varient = models.ForeignKey(ProductVarient, on_delete=models.CASCADE,blank=True,null=True )
+    quantity = models.IntegerField(blank=True, null=True)
+    attribute = models.CharField(max_length=255, blank=True, null=True)
+    attribute_value = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         db_table = 'product_attributes'

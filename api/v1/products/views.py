@@ -11,19 +11,52 @@ from api.v1.main.functions import *
 from products.models import *
 from django.db.models import Case, When, Value, IntegerField
 from rest_framework import generics
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
 
 @api_view(["GET"])
 @group_required(["admin"])
 def admin_product(request):
     try:
-        isinstance = Product.objects.all()
+        instance = Product.objects.all()
+        paginator = Paginator(instance, 8)
+        page = request.GET.get('page')
+        try:
+            farmers = paginator.page(page)
+        except PageNotAnInteger:
+            farmers = paginator.page(1)
+        except EmptyPage:
+            farmers = paginator.page(paginator.num_pages)
+
+        next_page_number = 1
+        has_next_page = False
+        if farmers.has_next():
+            has_next_page = True
+            next_page_number = farmers.next_page_number()
+
+        has_previous_page = False
+        previous_page_number = 1
+        if farmers.has_previous():
+            has_previous_page = True
+            previous_page_number = farmers.previous_page_number()
         serialized = ProductAdminViewSerializer(
-            isinstance,
+            instance,
             many = True
         ).data
         response_data = {
             "StatusCode":6000,
-            "data":serialized
+            "data":serialized,
+            'pagination_data': {
+                'current_page': farmers.number,
+                'has_next_page': has_next_page,
+                'next_page_number': next_page_number,
+                'has_previous_page': has_previous_page,
+                'previous_page_number': previous_page_number,
+                'total_pages': paginator.num_pages,
+                'total_items': paginator.count,
+                'first_item': farmers.start_index(),
+                'last_item': farmers.end_index(),
+            },
         }
     except Exception as e:
         transaction.rollback()
@@ -127,23 +160,17 @@ def categories(request):
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
+
 @api_view(["PUT", "PATCH"])
 @group_required(["admin"])
 def editCategory(request, pk):
     try:
-        # Get the existing category instance
         category = Category.objects.get(id=pk)
-        print(category)
-        # Deserialize the request data
         serializer = EditCategorySerializer(category, data=request.data, partial=True)
+
         if serializer.is_valid():
-            name = request.data.get("name")
-            description = request.data.get("description")
-            image = request.data.get("image")
-            category.name = name
-            category.description = description
-            category.image = image
             serializer.save()
+
             response_data = {
                 "StatusCode": 6000,
                 "data": serializer.data,
@@ -172,6 +199,7 @@ def editCategory(request, pk):
             "response": errors
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
 
 
 @api_view(["PUT", "PATCH"])
@@ -256,7 +284,7 @@ def deleteCategory(request, pk):
                 default=Value(0),
                 output_field=IntegerField(),
             )
-            ).order_by('is_deleted_int', 'orders')
+            ).order_by('is_deleted_int', 'position')
 
         for i, current_category in enumerate(all_categories, start=1):
             current_category.position = i
@@ -324,7 +352,7 @@ def addProduct(request):
                 response_data = {
                     "StatusCode":6001,
                     "data":{
-                        "message":"product already exists"
+                        "message":"product already exists",
                     }
                 }
             if not error:
@@ -362,6 +390,72 @@ def addProduct(request):
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
+
+
+@api_view(["POST"])
+@group_required(["admin"])
+def addVarient(request,pk):
+    try:
+        transaction.set_autocommit(False)
+        error = False
+        message = ""
+        datas = request.data
+        if not Product.objects.filter(pk=pk).exists():
+            error =True
+            message = "Product dous not exist"
+        if not error:
+            product = Product.objects.get(pk=pk)
+            for data in datas:
+                images = data.get('images')
+                attributes = data.get('attributes')
+                print(attributes,"_____atri___obj")
+                product_varient = ProductVarient.objects.create(
+                    product = product,
+                    thumbnail = images[0]
+                )
+                for image in images:
+                    print(image,"______image")
+                    product_image = ProductImages.objects.create(
+                        image = image,
+                        product_varient = product_varient
+                    )
+
+                for attribute in attributes:
+                    print(attribute,"test______test")
+                    attribute_obj = Attribute.objects.create(
+                        attribute = attribute["attribute"],
+                        attribute_value = attribute["attribute_value"],
+                        quantity = attribute["quantity"]
+                    )
+            transaction.commit()
+            response_data={
+                "StatusCode":6000,
+                "data":{
+                    "message":"Succesfully created varient"
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode":6001,
+                "data":{
+                    "message":message
+                }
+            }
+    except Exception as e:
+        transaction.rollback()
+        errType = e.__class__.__name__
+        errors = {
+            errType: traceback.format_exc()
+        }
+        response_data = {
+            "status": 6001,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors
+        }
+
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -687,10 +781,9 @@ def deleteAttribute(request, pk):
 
 #-----------------Sub Category ----------------------------------------------------------------
 
-
 @api_view(["POST"])
 @group_required(["admin"])
-def addSubcategory(request):
+def addSubcategory(request, data=None):
     try:
         transaction.set_autocommit(False)
         serialized = AddSubCategorySerializer(data=request.data)
@@ -715,7 +808,9 @@ def addSubcategory(request):
         if errors:
             response_data = {
                 "StatusCode": 6001,
-                "data": {"message": ", ".join(errors)}
+                "data": {
+                    "message": ", ".join(errors)
+                    }
             }
         else:
             name = request.data["name"]
@@ -723,9 +818,18 @@ def addSubcategory(request):
             category = Category.objects.get(pk=category_id)
 
             highest_position = SubCategory.objects.aggregate(Max('position'))['position__max']
+            if parent_id:
+                parent = SubCategory.objects.get(pk=parent_id)
+            else:
+                parent = None
+
+            # Get the highest existing position for SubCategory under the same parent
+            highest_position = SubCategory.objects.filter(parent=parent).aggregate(Max('position'))['position__max']
+
+            # Set the position for the new SubCategory to be the next sequential number
             position = highest_position + 1 if highest_position is not None else 1
 
-            if not SubCategory.objects.filter(name=name, category=category).exists():
+            if not SubCategory.objects.filter(name=name, category=category, parent=parent).exists():
                 sub_category = SubCategory.objects.create(
                     name=name,
                     description=description,
@@ -737,12 +841,23 @@ def addSubcategory(request):
                 transaction.commit()
                 response_data = {
                     "StatusCode": 6000,
-                    "data": {"message": f"{sub_category.name} successfully created"}
+                    "data": {
+                        "message": f"{sub_category.name} successfully created"
+                        }
                 }
+
+                # Recursive call to handle adding multiple levels of subcategories
+                if 'subcategories' in request.data:
+                    for subcategory_data in request.data['subcategories']:
+                        subcategory_data['category'] = category_id
+                        subcategory_data['parent'] = sub_category.id
+                        addSubcategory(request=request, data=subcategory_data)
             else:
                 response_data = {
                     "StatusCode": 6001,
-                    "data": {"message": "Subcategory already exists"}
+                    "data": {
+                        "message": "Subcategory already exists"
+                        }
                 }
     except Exception as e:
         transaction.rollback()
@@ -803,15 +918,47 @@ def viewSubCategory(request, pk):
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
-@api_view(["GET"])
-@permission_classes((AllowAny,))
-def viewSubCategoryTree(request):
-    try:
-        response_data={
 
-        }
+def viewSubCategory(request, type):
+    try:
+        response_data = {}
+
+        if type == "all":
+            instances = SubCategory.objects.filter(is_deleted=False)
+            serialized_instances = [ViewSubCategorySerializer(instance).data for instance in instances]
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": serialized_instances
+                }
+            }
+        elif SubCategory.objects.filter(pk=type, is_deleted=False).exists():
+            instances = SubCategory.objects.filter(pk=type, is_deleted=False)
+            serialized_instances = [ViewSubCategorySerializer(instance).data for instance in instances]
+            response_data["sub_category_exists"] = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": serialized_instances
+                }
+            }
+        elif SubCategory.objects.filter(category=type, is_deleted=False).exists():
+            instances = SubCategory.objects.filter(category=type, is_deleted=False)
+            serialized_instances = [ViewSubCategorySerializer(instance).data for instance in instances]
+            response_data["sub_category_belongs_to_category"] = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": serialized_instances
+                }
+            }
+        else:
+            response_data["invalid_condition"] = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Invalid condition or Sub Category does not exist"
+                }
+            }
+
     except Exception as e:
-        transaction.rollback()
         errType = e.__class__.__name__
         errors = {
             errType: traceback.format_exc()
@@ -823,6 +970,7 @@ def viewSubCategoryTree(request):
             "message": str(e),
             "response": errors
         }
+
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 @api_view(["PUT", "PATCH"])
@@ -833,47 +981,21 @@ def editSubCategory(request, pk):
         serializer = EditSubCategorySerializer(subcategory, data=request.data, partial=True)
         
         if serializer.is_valid():
-            name = request.data.get("name")
-            description = request.data.get("description")
-            category_id = request.data.get("category")
-            parent_id = request.data.get("parent")
-
-            try:
-                category = Category.objects.get(id=category_id)
-            except Category.DoesNotExist:
-                return Response({
-                    "app_data": {
-                        "StatusCode": 6002,
-                        "data": {"message": "Category not found"}
-                    }
-                }, status=status.HTTP_404_NOT_FOUND)
-
-            try:
-                parent_subcategory = SubCategory.objects.get(id=parent_id)
-            except SubCategory.DoesNotExist:
-                return Response({
-                    "app_data": {
-                        "StatusCode": 6002,
-                        "data": {"message": "Parent SubCategory not found"}
-                    }
-                }, status=status.HTTP_404_NOT_FOUND)
-
-            subcategory.name = name
-            subcategory.description = description
-            subcategory.category = category
-            subcategory.parent = parent_subcategory
-            subcategory.save()
+            serializer.save()
 
             response_data = {
                 "StatusCode": 6000,
                 "data": serializer.data,
                 "message": "Subcategory updated successfully"
             }
+
+        # Handle validation errors
         else:
             response_data = {
                 "StatusCode": 6001,
-                "data": generate_serializer_errors(serializer.errors)
+                "data": serializer.errors
             }
+
     except SubCategory.DoesNotExist:
         response_data = {
             "StatusCode": 6002,
@@ -893,6 +1015,8 @@ def editSubCategory(request, pk):
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
+
+
 @api_view(["DELETE"])
 @group_required(["admin"])
 def deleteSubCategory(request, pk):
@@ -900,16 +1024,28 @@ def deleteSubCategory(request, pk):
         subcategory = SubCategory.objects.get(pk=pk)
         subcategory.is_deleted = True
         subcategory.save()
+
+        # Update the order of all categories
+        all_subcategories = SubCategory.objects.annotate(
+            is_deleted_int=Case(When(is_deleted=True, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+            ).order_by('is_deleted_int', 'position')
+
+        for i, current_subcategory in enumerate(all_subcategories, start=1):
+            current_subcategory.position = i
+            current_subcategory.save()
         response_data = {
-            "StatusCode":  6000,
+            "StatusCode": 6000,
             "data" : {
-                "message" : f"{subcategory.name} deleted Successfully"
+                "message" : f"{subcategory.name} deleted successfully"
             }
         }
-    except SubCategory.DoesNotExist:
+    except Category.DoesNotExist:
         response_data = {
             "StatusCode": 6001,
-            "data": {"message": "Category not found"}
+            "data": {"message": "Sub Category not found"}
         }
     except Exception as e:
         response_data = {
@@ -919,6 +1055,7 @@ def deleteSubCategory(request, pk):
             "message": str(e),
             "response": {"error": "An error occurred while deleting the category"}
         }
+
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
@@ -965,17 +1102,21 @@ def editSubCategoryPosition(request, pk):
             else:
                 response_data = {
                     "StatusCode": 6001,
-                    "data": {"message": "Invalid position value"}
+                    "data": {
+                        "message": "Invalid position value"
+                        }
                 }
         else:
             response_data = {
-                "StatusCode": 6002,
+                "StatusCode": 6001,
                 "data": generate_serializer_errors(serializer.errors)
             }
     except SubCategory.DoesNotExist:
         response_data = {
-            "StatusCode": 6003,
-            "data": {"message": "Category not found"}
+            "StatusCode": 6001,
+            "data": {
+                "message": "Category not found"
+                }
         }
     except Exception as e:
         response_data = {
@@ -1115,7 +1256,7 @@ def viewProduct(request, type):
             errType: traceback.format_exc()
         }
         response_data.update({
-            "status": 0,
+            "status": 6001,
             "api": request.get_full_path(),
             "request": request.data,
             "message": str(e),
@@ -1153,3 +1294,58 @@ def subcategory_tree(request, pk):
             }
         }
         return Response({'app_data': response_data}, status=status.HTTP_404_NOT_FOUND)
+@api_view(["GET"])
+@permission_classes((AllowAny,))
+def product_list_by_price_range(request):
+    try:
+        filter_serializer = ProductFilterSerializer(data=request.GET)
+        filter_serializer.is_valid(raise_exception=True)
+
+        min_price = filter_serializer.validated_data.get('min_price')
+        max_price = filter_serializer.validated_data.get('max_price')
+
+        print(f"Received min_price: {min_price}, max_price: {max_price}")
+
+        if min_price is not None and max_price is not None:
+            products = Product.objects.filter(purchase_price__gte=min_price, purchase_price__lte=max_price)
+
+            serializer = ProductListByPurchasePriceSerializer({'message': products})
+            response_data = {
+                "StatusCode": 6000,
+                "message" : {
+                    "data": serializer.data
+                }
+                
+            }
+
+            return Response(response_data, status=status.HTTP_200_OK)
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                'data': {'error': 'Provide both min_price and max_price parameters'}
+            }
+            return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+    except serializers.ValidationError as e:
+        error_message = f"Invalid parameter: {e}"
+        response_data = {
+            "StatusCode": 6001,
+            'data': {'error': error_message}
+        }
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        errType = e.__class__.__name__
+        errors = {
+            errType: str(e),
+            'traceback': traceback.format_exc()
+        }
+
+        response_data = {
+            "status": 6000,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "response": errors
+        }
+
+        return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

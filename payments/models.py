@@ -39,9 +39,12 @@ class Transaction(BaseModel):
         managed = True
         verbose_name = 'Transaction'
         verbose_name_plural = 'Transactions'
-
     def __str__(self):
         return f"{self.user.name}-{self.amount}-{self.created_at}'s transaction"
     
 
     
+# coins models
+# log
+# point amount boolean isactive or inactive
+# wallet

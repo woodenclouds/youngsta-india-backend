@@ -13,8 +13,11 @@ urlpatterns = [
     re_path(r'^brands/$', views.brands, name="brands"),
     re_path(r'^viewproduct/(?P<type>.*)/$', views.viewProduct, name="viewProduct"),
     re_path(r'^sub-category/(?P<pk>.*)/$', views.viewSubCategory, name="sub-categories"),
+    re_path(r'^view-sub-category/(?P<type>.*)/$', views.viewSubCategory, name="sub-categories"),
     re_path(r'^edit-categoryposition/(?P<pk>.*)/$', views.editCategoryPosition, name="editCategoryPosition"),
     re_path(r'^edit-subcategoryposition/(?P<pk>.*)/$', views.editSubCategoryPosition, name="editCategoryPosition"),
+    re_path(r'^filter_products_by_price/$', views.product_list_by_price_range, name="product_list_by_price_range"),
+
 
 
     # ---------------admin-------------
@@ -29,6 +32,7 @@ urlpatterns = [
     re_path(r'^admin/editAttribute/(?P<pk>.*)/$', views.editAttribute, name="edit_Attribute"),
     re_path(r'^admin/deleteAttribute/(?P<pk>.*)/$', views.deleteAttribute, name="delete_Attribute"),
     re_path(r'^admin/addProduct/$', views.addProduct, name="add_product"),
+    re_path(r'^admin/addVarient/(?P<pk>.*)/$', views.addVarient, name="add_varient"),
     re_path(r'^admin/add-subcategory/$', views.addSubcategory, name="add_subcategory"),
     re_path(r'^admin/view-subcategory/(?P<pk>.*)/$', views.viewSubCategory, name="view_subcategory"),
     re_path(r'^view-subcategory/(?P<pk>.*)/$', views.subcategory_tree, name="view_subcategory_tree"),

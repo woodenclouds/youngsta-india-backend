@@ -14,3 +14,62 @@ class WishlistItemSerializer(serializers.ModelSerializer):
     def get_product(self,instance):
         product = instance.product.name
         return product
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartItem
+        fields = ['id', 'cart', 'product', 'quantity', 'price']
+
+class CartSerializer(serializers.ModelSerializer):
+    cart_items = CartItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Cart
+        fields = ['id', 'user', 'total_amount', 'cart_items']
+
+
+
+class PurchaseItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PurchaseItems
+        fields = ['id', 'purchase', 'product', 'quantity', 'price']
+
+class PurchaseSerializer(serializers.ModelSerializer):
+    purchase_items = CartItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Purchase
+        fields = ['id', 'user', 'total_amount', 'purchase_items']
+
+
+
+class PurchaseAmountSerializer(serializers.ModelSerializer):
+    tax_amount = serializers.IntegerField()
+    payment_method = serializers.CharField()
+
+    class Meta:
+        model = PurchaseAmount
+        fields = ['id', 'total_amount', 'tax_amount', 'final_amount', 'payment_method']
+        
+# class UserSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = User
+#         fields = ['id', 'username', 'email']  # Add other fields as needed
+
+# class PurchaseAmountSerializer(serializers.ModelSerializer):
+#     tax_amount = serializers.IntegerField()
+#     payment_method = serializers.CharField()
+#     user = UserSerializer()  # Include the user information using UserSerializer
+
+#     class Meta:
+#         model = PurchaseAmount
+#         fields = ['id', 'total_amount', 'tax_amount', 'final_amount', 'payment_method', 'user']
+        
+
+class ViewPurchaseDeatils(serializers.ModelSerializer):
+    class Meta:
+        model = PurchaseItems
+        fields = ['id', 'product' , 'quantity', 'price' ]
+
+
