@@ -12,7 +12,7 @@ from products.models import *
 from django.db.models import Case, When, Value, IntegerField
 from rest_framework import generics
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-
+from datetime import datetime, timedelta
 
 @api_view(["GET"])
 @group_required(["admin"])
@@ -1324,7 +1324,8 @@ def product_list_by_price_range(request):
                 "StatusCode": 6001,
                 'data': {'error': 'Provide both min_price and max_price parameters'}
             }
-            return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
 
     except serializers.ValidationError as e:
         error_message = f"Invalid parameter: {e}"
@@ -1332,7 +1333,8 @@ def product_list_by_price_range(request):
             "StatusCode": 6001,
             'data': {'error': error_message}
         }
-        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
 
     except Exception as e:
         errType = e.__class__.__name__
@@ -1348,4 +1350,47 @@ def product_list_by_price_range(request):
             "response": errors
         }
 
+        return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+ 
+@api_view(["GET"])
+@permission_classes((AllowAny,))
+def new_arrivals(request):
+    try:
+        new_arrival_threshold = datetime.now() - timedelta(days=7)
+        new_arrival_products = Product.objects.filter(created_at__gte=new_arrival_threshold)
+        serialized_products = []
+        for product in new_arrival_products:
+                    serialized_products.append({
+                        'name': product.name,
+                        'description': product.description,
+                        'price': str(product.price),
+                        'offers': product.offers,
+                        'brand': product.brand.name if product.brand else None,
+                        'subcategory': product.subcategory.name if product.subcategory else None,
+                        'specs': product.specs,
+                        'status': product.status,
+                        'purchase_price': str(product.purchase_price),
+                        'created_at': str(product.created_at),
+                    })
+
+        response_data = {
+            'status': 'success',
+            'message': 'New arrivals fetched successfully',
+            'data': serialized_products,
+        }
+
+        return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        # Handle exceptions
+        error_message = str(e)
+        response_data = {
+            'status': 'error',
+            'message': f'Error fetching new arrivals: {error_message}',
+        }
+
         return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

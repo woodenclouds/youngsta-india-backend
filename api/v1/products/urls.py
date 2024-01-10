@@ -17,6 +17,7 @@ urlpatterns = [
     re_path(r'^edit-categoryposition/(?P<pk>.*)/$', views.editCategoryPosition, name="editCategoryPosition"),
     re_path(r'^edit-subcategoryposition/(?P<pk>.*)/$', views.editSubCategoryPosition, name="editCategoryPosition"),
     re_path(r'^filter_products_by_price/$', views.product_list_by_price_range, name="product_list_by_price_range"),
+    re_path(r'^new_arrivals/$', views.new_arrivals, name="new_arrivals"),
 
 
 
