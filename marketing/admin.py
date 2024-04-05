@@ -15,3 +15,6 @@ class AdItemAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
     search_fields = ('pk', 'title',)
 admin.site.register(AdsItem,AdItemAdmin)
+
+
+admin.site.register(Coupens)

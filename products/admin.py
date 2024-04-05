@@ -4,20 +4,21 @@ from .models import *
 
 # admin.site.register(ProductItem)
 admin.site.register(ProductTag)
+admin.site.register(AttributeType)
+admin.site.register(AttributeDescription)
 
-class ProductImageInline(admin.TabularInline):  # or StackedInline
-    model = ProductImages
+# class ProductImageInline(admin.TabularInline):  # or StackedInline
+#     model = ProductImages
 
-@admin.register(ProductVarient)
-class ProductItemAdmin(admin.ModelAdmin):
-    inlines = [ProductImageInline]
+# @admin.register(ProductVarient)
+# class ProductItemAdmin(admin.ModelAdmin):
+#     inlines = [ProductImageInline]
 
 # admin.site.register(SubCategory)
 
 # class CategoryAdmin(admin.ModelAdmin):
 #     list_display=('pk', 'name', )
 # admin.site.register(Category, CategoryAdmin)
-
 class SubCategoryAdmin(admin.ModelAdmin):
     list_display = ('pk', 'name', 'position')
     ordering = ('position',)
@@ -35,16 +36,18 @@ class BrandAdmin(admin.ModelAdmin):
 admin.site.register(Brand, BrandAdmin)
 
 class AtributeAdmin(admin.ModelAdmin):
-    list_display=('pk', 'quantity','attribute' ,'attribute_value')
+    list_display=('pk','attribute' ,'attribute_value')
 admin.site.register(Attribute, AtributeAdmin)
 
 
 class ProductAdmin(admin.ModelAdmin):
     list_display=('pk', 'name', )
     search_fields = ('pk', 'name',)
-    def get_brand_name(self, obj):
-        return obj.brand.name if obj.brand else ''
-    get_brand_name.short_description = 'Brand'
 
 admin.site.register(Product, ProductAdmin)
 
+admin.site.register(ProductAttribute)
+
+# class ProductImageAdmin(admin.ModelAdmin):
+#     list_display=("pk","product", "image", "thumbnail")
+# admin.site.register(ProductImages, ProductImageAdmin)

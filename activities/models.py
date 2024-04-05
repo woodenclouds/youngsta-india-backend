@@ -6,44 +6,63 @@ from main.models import *
 from django.db import models
 from main.models import *
 from django.contrib.auth.models import Group
-from products.models import Product 
+from products.models import Product, ProductVarient, VarientAttribute
 from accounts.models import Address
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+import string
+import random
 
 PAYMENT_METHOD = [
-    ('cod', 'Cash on delivery'),
-    ('card','CARD'),
-    ('ot','Online transaction')
+    ("cod", "Cash on delivery"),
+    ("card", "CARD"),
+    ("ot", "Online transaction"),
 ]
 
-LOG_STATUS = [
+REFFERAL_STATUS = (
     ("pending", "Pending"),
-    ("ordered", "Ordered"),
-    ("confirmed", "Confirmed"),
-    ("packed", "Packed"),
-    ("shipped", "Shipped"),
-    ("delivered", "Delivered"),
-    ("cancelled", "Cancelled"),
-    ("return_dispatched", "Return Dispatched"),
-    ("return_received", "Return Received"),
-    ("payment_failed", "Payment Failed"),
-    ("shipment_failed", "Shipment Failed"),
+    ("purchased", "Purchased"),
+    ("purchase_completed", "Purchase Completed"),
+    ("completed", "Completed"),
+)
+
+LOG_STATUS = [
+    ("Pending", "Pending"),
+    ("Accepted", "Accepted"),
+    ("Shipped", "Shipped"),
+    ("Delivered", "Delivered"),
+    ("Cancelled", "Cancelled"),
+    ("Return", "Return"),
 ]
+
+
 class ActivityLog(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)
     action = models.CharField(max_length=100)
-    product = models.ForeignKey('products.Product', related_name='products', on_delete=models.CASCADE)
+    product = models.ForeignKey(
+        "products.Product", related_name="products", on_delete=models.CASCADE
+    )
+
     def __str__(self):
         return f"{self.user.username} - {self.action} at {self.timestamp}"
-    
+
 
 class PurchaseAmount(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    total_amount = models.DecimalField(max_digits=10,decimal_places=2, blank=True, null=True)
-    tax =  models.DecimalField(max_digits=10,decimal_places=2, blank=True, null=True)
-    final_amount = models.DecimalField(max_digits=10,decimal_places=2, blank=True, null=True)
-    wallet_deduction = models.DecimalField(max_digits=10,decimal_places=2, blank=True, null=True)
-    payment_method = models.CharField(choices=PAYMENT_METHOD, max_length=155, default='cod')
+    total_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True
+    )
+    tax = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    final_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True
+    )
+    wallet_deduction = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True
+    )
+    payment_method = models.CharField(
+        choices=PAYMENT_METHOD, max_length=155, default="cod"
+    )
 
     # class Meta:
     #     db_table = 'activities_purchases'
@@ -53,55 +72,74 @@ class PurchaseAmount(BaseModel):
 
     # def __str__(self):
     #     return self.user
-    
+
 
 class Refferals(BaseModel):
-    refered_by = models.ForeignKey('accounts.UserProfile',on_delete=models.CASCADE,blank=True,null=True,related_name="refered_by")
-    refered_to = models.ForeignKey('accounts.UserProfile',on_delete=models.CASCADE,blank=True,null=True,related_name="refered_to")
+    refered_by = models.ForeignKey(
+        "accounts.UserProfile",
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        related_name="refered_by",
+    )
+    refered_to = models.ForeignKey(
+        "accounts.UserProfile",
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        related_name="refered_to",
+    )
+    product = models.ForeignKey(
+        "products.Product",
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        related_name="reffered_product",
+    )
     completed = models.BooleanField(default=False)
 
     class Meta:
-        db_table = 'activities_referalls'
+        db_table = "activities_referalls"
         managed = True
-        verbose_name = 'Refferals'
-        verbose_name_plural = 'Refferals'
+        verbose_name = "Refferals"
+        verbose_name_plural = "Refferals"
 
     # def __str__(self):
     #     return self.user.name
-    
+
 
 class PurchaseLog(BaseModel):
-    Purchases = models.ForeignKey('PurchaseAmount',on_delete=models.CASCADE, blank=True, null=True)
-    log_status = models.CharField(max_length=155,choices=LOG_STATUS, blank=True, null=True, default='pending')
-    description = models.TextField()
+    Purchases = models.ForeignKey(
+        "Purchase", on_delete=models.CASCADE, blank=True, null=True
+    )
+    log_status = models.CharField(
+        max_length=155, choices=LOG_STATUS, blank=True, null=True, default="pending"
+    )
+    description = models.TextField(blank=True, null=True)
 
     class Meta:
-        db_table = 'activities_purchaselog'
+        db_table = "activities_purchaselog"
         managed = True
-        verbose_name = 'PurchaseLog'
-        verbose_name_plural = 'Purchase logs'
+        verbose_name = "PurchaseLog"
+        verbose_name_plural = "Purchase logs"
 
-    
-    
 
 # ---------wishlist model---------------
 
 
-
 class WishlistItem(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    product = models.ForeignKey('products.Product', on_delete=models.CASCADE)
+    product = models.ForeignKey("products.Product", on_delete=models.CASCADE)
 
     def __str__(self):
         return f"{self.user.username}'s wishlist item - {self.product.name}"
-    
-    
 
 
 # ----------cart model-------------------
 
 
- # Update this import as per your actual setup
+# Update this import as per your actual setup
+
 
 class Cart(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -115,21 +153,37 @@ class Cart(BaseModel):
         self.total_amount = total
         self.save()
 
+
 class CartItem(BaseModel):
-    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='cart_items')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="cart_items")
+    product = models.ForeignKey(
+        "products.Product", on_delete=models.CASCADE, blank=True, null=True
+    )
     quantity = models.PositiveIntegerField(default=1)
     price = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
+    attribute = models.ForeignKey(
+        "products.ProductAttribute", on_delete=models.CASCADE, blank=True, null=True
+    )
 
     def __str__(self):
         return f"{self.product.name} in {self.cart.user.username}'s cart"
 
 
-
 class Purchase(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    address = models.ForeignKey("accounts.Address", on_delete=models.CASCADE, related_name='purchases', blank=True, null=True)
+    address = models.ForeignKey(
+        "accounts.Address",
+        on_delete=models.CASCADE,
+        related_name="purchases",
+        blank=True,
+        null=True,
+    )
     total_amount = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
+    status = models.CharField(choices=LOG_STATUS, blank=True, null=True)
+    order_status = models.CharField(max_length=255, blank=True, null=True)
+    refferal = models.CharField(max_length=10, blank=True, null=True)
+    active = models.BooleanField(default=True, blank=True, null=True)
+
     def __str__(self):
         return f"Purchase for {self.user.username}"
 
@@ -138,22 +192,86 @@ class Purchase(BaseModel):
         self.total_amount = total
         self.save()
 
+
 class PurchaseItems(BaseModel):
-    purchase = models.ForeignKey(Purchase, on_delete=models.CASCADE, related_name='purchase_items')
+    purchase = models.ForeignKey(
+        Purchase, on_delete=models.CASCADE, related_name="purchase_items"
+    )
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
+    attribute = models.ForeignKey(
+        "products.ProductAttribute", on_delete=models.CASCADE, blank=True, null=True
+    )
     price = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
-
 
     def __str__(self):
         return f"{self.product.name} in {self.purchase.user.username}'s purchase"
 
 
-
 # purchase item - like cart
 # purchase items - like cart itmes
-    #==done
+# ==done
 # purchase cod or online payment
 # stripe payment if possible
 # coin
 # refferal amount manualyy enter when Purchase
+
+
+class PurchaseStatus(BaseModel):
+    status = models.CharField(max_length=255, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    order_id = models.PositiveIntegerField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.status}-{self.order_id}"
+
+    class Meta:
+        db_table = "activities_purchase_status"
+        managed = True
+        verbose_name = "Purchase Status"
+        verbose_name_plural = "Purchase Statuses"
+
+
+# class PurchaseLogs(BaseModel):
+#     purchase = models.ForeignKey(
+#         Purchase, on_delete=models.CASCADE, blank=True, null=True
+#     )
+#     status = models.ForeignKey(
+#         PurchaseStatus, on_delete=models.CASCADE, blank=True, null=True
+#     )
+#     description = models.TextField(blank=True, null=True)
+
+#     class Meta:
+#         db_table = "activities_purchase_log"
+#         managed = True
+#         verbose_name = "Purchase Log"
+#         verbose_name_plural = "Purchase Logs"
+
+
+class Referral(BaseModel):
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="referrals"
+    )
+    referred_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="referrals_made"
+    )
+    referred_to = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="referrals_received"
+    )
+    referral_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    order = models.ForeignKey(
+        Purchase, on_delete=models.CASCADE, related_name="referrals"
+    )
+    refferal_status = models.CharField(
+        choices=REFFERAL_STATUS, max_length=155, blank=True, null=True
+    )
+    is_paid = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Referral from {self.referred_by.username} to {self.referred_to.username} for {self.product.name}"
+
+    class Meta:
+        db_table = "activities_referral"
+        managed = True
+        verbose_name = "Referral"
+        verbose_name_plural = "Referrals"

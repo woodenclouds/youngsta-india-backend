@@ -25,7 +25,7 @@ from django.contrib.auth import authenticate
 # from .functions import *
 from api.v1.main.decorater import *
 from .functions import *
-
+from activities.models import *
 
 @api_view(["POST"])
 @permission_classes((AllowAny,))
@@ -46,12 +46,20 @@ def signup(request):
                     send_otp_email(email, otp)
                     user = User.objects.create_user(username=email, password=password)
                     enc_password = encrypt(password)
+                    code = generate_referral_code()
                     profile = UserProfile.objects.create(
                         user=user,
                         first_name=first_name,
                         last_name=last_name,
                         email=email,
-                        password=enc_password
+                        password=enc_password,
+                        refferal_code=code
+                    )
+                    cart = Cart.objects.create(
+                        user = user
+                    )
+                    wallet = Wallet.objects.create(
+                        user = profile,
                     )
                     # Assuming address data is nested within the UserProfileSerializer
                     # Retrieve and process address data
@@ -123,6 +131,7 @@ def verify(request):
                                 "last_name":profile.last_name,
                                 "email":profile.email,
                                 "country_code":profile.country_code,
+                                "refferal_code":profile.refferal_code,
                                 "phone_number":profile.phone_number,
                                 "access_token": str(refresh.access_token),
                                 "refresh_token": str(refresh)
@@ -191,6 +200,7 @@ def login(request):
                         "data": {
                             "first_name":profile.first_name,
                             "last_name":profile.last_name,
+                            "refferal_code":profile.refferal_code,
                             "email":profile.email,
                             "access_token": access,
                             "refresh_token": str(refresh)
@@ -251,7 +261,7 @@ def admin_signup(request):
                     user=user,
                     name=name,
                     email = email,
-                    password = enc_password
+                    password = enc_password,
                 )
                 transaction.commit()
                 user = authenticate(request, username=email, password=password)
@@ -293,6 +303,70 @@ def admin_signup(request):
         }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
+@api_view(["POST"])
+@permission_classes((AllowAny,))
+def adminSignup(request):
+    try:
+        transaction.set_autocommit(False)
+        serializer = AdminSignupSerializers(data=request.data)
+        if serializer.is_valid():
+            name = request.data["name"]
+            email = request.data["email"]
+            password = request.data["password"]
+            if not User.objects.filter(email=email).exists():
+                user = User.objects.create_user(
+                    username=email,
+                    email=email,
+                    password=password,
+                    first_name=name  # You can also set other user attributes here
+                )
+                encrypt_pass = encrypt(password)
+                admin_profile = AdminProfile.objects.create(
+                    user = user,
+                    name = name,
+                    password = encrypt_pass,
+                    email = email,
+                    country_code='US',
+                    phone_number = 00000000000
+                )
+                add_user_to_group(email,'admin')
+                transaction.commit()
+                refresh = RefreshToken.for_user(user)
+                access = str(refresh.access_token)
+                response_data={
+                    "StatusCode":6000,
+                    "data":{
+                        "message":"success",
+                        "access":access,
+                        "refresh":str(refresh)
+                    },
+                }
+            else:
+                response_data = {
+                    "StatusCode":6001,
+                    "data":{
+                        "message":"user already exists"
+                    }
+                }
+        else:
+            response_data = {
+                    "StatusCode": 6001,
+                    "data": generate_serializer_errors(serializer._errors)
+                }
+    except Exception as e:
+        transaction.rollback()
+        errType = e.__class__.__name__
+        errors = {
+            errType: traceback.format_exc()
+        }
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors,
+        }   
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 @api_view(["POST"])
 @permission_classes((AllowAny,))
@@ -355,13 +429,39 @@ def admin_login(request):
 @group_required(["admin"])
 def costemers(request):
     try :
-        instance = UserProfile.objects.all()
+        instances = UserProfile.objects.all()
+        paginator = Paginator(instances, 10)
+        page = request.GET.get('page')
+
+        try:
+            instances = paginator.page(page)
+        except PageNotAnInteger:
+            instances = paginator.page(1)
+        except EmptyPage:
+            instances = paginator.page(paginator.num_pages)
+
+        has_next_page = instances.has_next()
+        next_page_number = instances.next_page_number() if has_next_page else 1
+
+        has_previous_page = instances.has_previous()
+        previous_page_number = instances.previous_page_number() if has_previous_page else 1
         serialized = ViewCostomerSerializer(
-            instance, many=True, context={'request': request}
+            instances, many=True, context={'request': request}
         ).data
         response_data = {
             "StatusCode":6000,
-            "data":serialized
+            "data":serialized,
+            'pagination_data': {
+                'current_page': instances.number,
+                'has_next_page': has_next_page,
+                'next_page_number': next_page_number,
+                'has_previous_page': has_previous_page,
+                'previous_page_number': previous_page_number,
+                'total_pages': paginator.num_pages,
+                'total_items': paginator.count,
+                'first_item': instances.start_index(),
+                'last_item': instances.end_index(),
+            },
         }
      
     except Exception as e:
@@ -753,3 +853,170 @@ def delete_staff(request, pk):
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
+
+@api_view(["GET"])
+def view_user(request):
+    user = request.user
+    user_profile = UserProfile.objects.get(user = user)
+    response_data = {
+        "StatusCode":6000,
+        "data":{
+            "first_name":user_profile.first_name,
+            "last_name":user_profile.last_name,
+            "email":user_profile.email,
+            "phone_number":user_profile.phone_number,
+            "country_code":user_profile.country_code
+        }
+    }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+
+@api_view(["GET"])
+@group_required(["admin"])
+def accountDetails(request):
+    try:
+        admin_account = AdminProfile.objects.get(user=request.user)
+        response_data = {
+            "StatusCode":6000,
+            "data":{
+                "name":admin_account.name,
+                "email":admin_account.email
+            }
+        }
+    except Exception as e:
+        response_data = {
+            "StatusCode": 6001,
+            "message": f"An error occurred: {str(e)}"
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@group_required(["admin"])
+def edit_account(request):
+    try:
+        try:
+            name = request.data["name"]
+        except:
+            name = None
+        if name:
+            admin_account = AdminProfile.objects.get(user=request.user)
+            admin_account.name = name
+            admin_account.save()
+        response_data = {
+            "StatusCode":6000,
+            "data":{
+                "message":"succesfully changed  your information",
+            }
+        }
+    except Exception as e:
+        response_data = {
+            "StatusCode": 6001,
+            "message": f"An error occurred: {str(e)}"
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@group_required(["admin"])
+def change_password(request):
+    try:
+        admin_account = AdminProfile.objects.get(user=request.user)
+        try:
+            old_pass = request.data['old_password']
+        except:
+            old_pass = None
+        try:
+            new_pass = request.data['new_password']
+        except:
+            new_pass = None
+        if old_pass and new_pass:
+            if admin_account.user.check_password(old_pass):
+                admin_account.user.set_password(new_pass)
+                enc_pass = encrypt(new_pass)
+                admin_account.password = enc_pass
+                admin_account.save()
+                response_data = {
+                    "StatusCode":6000,
+                    "data":{
+                        "message":"Succesfully changed password"
+                    }
+                }
+            else:
+                response_data = {
+                    "StatusCode": 6001,
+                    "message": "Old password is incorrect"
+                }
+        else:
+            response_data = {
+                "StatusCode":6001,
+                "data":{
+                    "message":"old_pass and new_pass is required"
+                }
+            }
+    except Exception as e:
+        response_data = {
+            "StatusCode": 6001,
+            "message": f"An error occurred: {str(e)}"
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+def change_password(request):
+    try:
+        user = request.user
+        user_profile = UserProfile.objects.get(user=user)
+        old_password = request.data.get("old_password")
+        new_password = request.data.get("new_password")
+        if not (old_password and new_password):
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "old_password and new_password required"
+                }
+            }
+            return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user_auth = authenticate(username=user_profile.email, password=old_password)
+        if user_auth is None:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Incorrect old password"
+                }
+            }
+            return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user.set_password(new_password)
+        user.save()
+        encrypt_pass = encrypt(new_password)
+        user_profile.password = encrypt_pass
+        user_profile.save()
+        
+        response_data = {
+            "StatusCode": 6000,
+            "data": {
+                "message": "Password changed successfully"
+            }
+        }
+        return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+    
+    except UserProfile.DoesNotExist:
+        response_data = {
+            "StatusCode": 6003,
+            "data": {
+                "message": "User profile not found"
+            }
+        }
+        return Response({'app_data': response_data}, status=status.HTTP_404_NOT_FOUND)
+    
+    except Exception as e:
+        response_data = {
+            "StatusCode": 6004,
+            "data": {
+                "message": f"An error occurred: {str(e)}"
+            }
+        }
+        return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

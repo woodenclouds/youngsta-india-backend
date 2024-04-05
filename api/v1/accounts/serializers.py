@@ -46,10 +46,28 @@ class ViewCostomerSerializer(serializers.ModelSerializer):
         )
     
     
+# class AddressSerializer(serializers.Serializer):
+#     first_name = serializers.CharField()
+#     last_name = serializers.CharField()
+#     address = serializers.CharField()
+#     phone = serializers.CharField()
+#     email = serializers.EmailField()
+#     city = serializers.CharField()
+#     post_code = serializers.CharField()
+
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
-        fields = '__all__'
+        fields = (
+            'id',
+            'first_name',
+            'last_name',
+            'address',
+            'phone',
+            'email',
+            'city',
+            'post_code',
+        )
 
 
 

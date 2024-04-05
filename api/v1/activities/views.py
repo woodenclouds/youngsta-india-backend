@@ -2,6 +2,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework import status
 from rest_framework.response import Response
+from django.db.models.functions import TruncDay, TruncMonth
+from django.shortcuts import get_object_or_404
 
 from django.db import transaction
 import traceback
@@ -10,41 +12,43 @@ from api.v1.main.decorater import *
 from api.v1.main.functions import *
 from products.models import *
 from payments.models import *
-
+from decimal import Decimal
+from api.v1.payments.views import *
+from rest_framework import serializers, viewsets
+from rest_framework.decorators import action
+from django.db.models import Sum
+from django.db.models.functions import TruncWeek
+from accounts.models import *
+from datetime import datetime, timedelta
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db.models import Subquery, OuterRef
 
 
 @api_view(["POST"])
-def add_to_wishlist(request,pk):
+def add_to_wishlist(request, pk):
     try:
         user = request.user
         if Product.objects.filter(pk=pk).exists():
             product = Product.objects.get(pk=pk)
             if not WishlistItem.objects.filter(user=user, product=product).exists():
-                wishlist = WishlistItem.objects.create(
-                    user=user,
-                    product = product
-                )
+                wishlist = WishlistItem.objects.create(user=user, product=product)
                 response_data = {
-                    "StatusCode":6000,
-                    "data":{
-                        "message":"succesfully added to wishlist"
-                    }
+                    "StatusCode": 6000,
+                    "data": {"message": "succesfully added to wishlist"},
                 }
             else:
+                wishlist = WishlistItem.objects.get(user=user, product=product)
+                wishlist.delete()
                 response_data = {
-                    "StatusCode":6001,
-                    "data":{
-                        "message":"already in wishlist"
-                    }
+                    "StatusCode": 6000,
+                    "data": {"message": "removed from wishlist"},
                 }
         else:
             response_data = {
-                "StatusCode":6001,
-                "data":{
-                    "message":"product not found"
-                }
+                "StatusCode": 6001,
+                "data": {"message": "product not found"},
             }
-        
+
     except Exception as e:
         response_data = {
             "status": 0,
@@ -52,36 +56,33 @@ def add_to_wishlist(request,pk):
             "request": request.data,
             "message": str(e),
         }
-    return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
-
-
+    return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["PUT", "PATCH"])
 def edit_wishlist_item(request, pk):
     try:
         wishlist_item = WishlistItem.objects.get(pk=pk)
-        serializer = WishlistItemSerializer(wishlist_item, data=request.data, partial=True)
-        
+        serializer = WishlistItemSerializer(
+            wishlist_item, data=request.data, partial=True
+        )
+
         if serializer.is_valid():
             serializer.save()
             response_data = {
                 "StatusCode": 6000,
                 "data": serializer.data,
-                "message": "Wishlist item updated successfully"
+                "message": "Wishlist item updated successfully",
             }
-            return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+            return Response({"app_data": response_data}, status=status.HTTP_200_OK)
         else:
             response_data = {
                 "StatusCode": 6001,
                 "data": serializer.errors,
-                "message": "Invalid data"
+                "message": "Invalid data",
             }
     except WishlistItem.DoesNotExist:
-        response_data = {
-            "StatusCode": 6004,
-            "message": "Wishlist item does not exist"
-        }
+        response_data = {"StatusCode": 6004, "message": "Wishlist item does not exist"}
     except Exception as e:
         response_data = {
             "status": 0,
@@ -89,8 +90,7 @@ def edit_wishlist_item(request, pk):
             "request": request.data,
             "message": str(e),
         }
-    return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
-
+    return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["DELETE"])
@@ -103,27 +103,19 @@ def delete_wishlist_item(request, pk):
             wishlist_item.delete()
             response_data = {
                 "StatusCode": 200,
-                "message": "Wishlist item deleted successfully"
+                "message": "Wishlist item deleted successfully",
             }
         else:
-            response_data={
-                "StatusCode":6001,
-                "data":{
-                    "message":"wishlist item not found"
-                }
+            response_data = {
+                "StatusCode": 6001,
+                "data": {"message": "wishlist item not found"},
             }
     except WishlistItem.DoesNotExist:
-        response_data = {
-            "StatusCode": 404,
-            "message": "Wishlist item does not exist"
-        }
+        response_data = {"StatusCode": 404, "message": "Wishlist item does not exist"}
     except Exception as e:
-        response_data = {
-            "StatusCode": 500,
-            "message": f"An error occurred: {str(e)}"
-        }
+        response_data = {"StatusCode": 500, "message": f"An error occurred: {str(e)}"}
 
-    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])
@@ -133,15 +125,14 @@ def view_wishlist(request):
         print(user.username)
         wishlist_items = WishlistItem.objects.filter(user=user)
         serializer = WishlistItemSerializer(wishlist_items, many=True)
-        
-        
+
         response_data = {
             "StatusCode": 200,
             "data": serializer.data,
-            "message": "Wishlist items retrieved successfully"
+            "message": "Wishlist items retrieved successfully",
         }
-        return Response({'app_data': response_data}, status=status.HTTP_200_OK)
-    
+        return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
     except Exception as e:
         response_data = {
             "status": 0,
@@ -149,104 +140,147 @@ def view_wishlist(request):
             "request": request.data,
             "message": str(e),
         }
-        return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
-
+        return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ---------cart view--------------
 
 
-
-
-
-
-
 @api_view(["POST"])
+@permission_classes((AllowAny,))
 def add_to_cart(request, pk):
     try:
         user = request.user
-        if Product.objects.filter(pk=pk).exists():
-            product = Product.objects.get(pk=pk)
-
-            attribute = Attribute.objects.filter(product_varient__product=product).first()
-            if attribute and attribute.quantity > 0:
-                cart, created = Cart.objects.get_or_create(user=user)
-                
-                if not CartItem.objects.filter(cart=cart, product=product).exists():
-                    cart_item = CartItem.objects.create(
-                        cart=cart,
-                        product=product,
-                        price=product.price  # Set the price here based on your logic
+        attribute_id = request.data["attribute_id"]
+        quantity = request.data["quantity"]
+        if attribute_id:
+            if ProductAttribute.objects.filter(pk=attribute_id).exists():
+                if Product.objects.filter(pk=pk).exists():
+                    product = Product.objects.get(pk=pk)
+                    attribute_description = ProductAttribute.objects.get(
+                        pk=attribute_id
                     )
-                    cart.update_total_amount()  # Update the total amount
-                    response_data = {
-                        "StatusCode": 6000,
-                        "data": {
-                            "message": "Successfully added to cart"
+                    cart = Cart.objects.get(user=user)
+                    if not CartItem.objects.filter(cart=cart, product=product).exists():
+                        cart_item = CartItem.objects.create(
+                            cart=cart,
+                            product=product,
+                            attribute=attribute_description,
+                            quantity=Decimal(quantity),
+                            price=product.selling_price * Decimal(quantity),
+                        )
+                        response_data = {
+                            "StatusCode": 6000,
+                            "data": {"message": "Added to cart"},
                         }
-                    }
+                    else:
+                        response_data = {
+                            "StatusCode": 6001,
+                            "data": {"message": "Product already exists in cart"},
+                        }
                 else:
                     response_data = {
                         "StatusCode": 6001,
-                        "data": {
-                            "message": "Already in cart"
-                        }
+                        "data": {"message": "Varient not exist"},
                     }
             else:
                 response_data = {
-                    "StatusCode": 6002,
-                    "data": {
-                        "message": "Product out of stock"
-                    }
+                    "StatusCode": 6001,
+                    "data": {"message": "Attribute not exist with this pk"},
                 }
         else:
             response_data = {
                 "StatusCode": 6001,
-                "data": {
-                    "message": "Product not found"
-                }
+                "data": {"message": "attribute_id is required"},
             }
-
     except Exception as e:
         response_data = {
-            "status": 0,
+            "status": 6001,
             "api": request.get_full_path(),
             "request": request.data,
             "message": str(e),
         }
-    return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
-@api_view(["DELETE"])
+# @api_view(["POST"])
+# def add_to_cart(request, pk):
+#     try:
+#         user = request.user
+#         if ProductVarient.objects.filter(pk=pk).exists():
+#             product_varient = ProductVarient.objects.get(pk=pk)
+
+#             attribute = VarientAttribute.objects.filter(varient=product_varient).first()
+#             if attribute and attribute.quantity > 0:
+#                 cart, created = Cart.objects.get_or_create(user=user)
+
+#                 if not CartItem.objects.filter(cart=cart, product=product).exists():
+#                     cart_item = CartItem.objects.create(
+#                         cart=cart,
+#                         product=product,
+#                         price=product.price  # Set the price here based on your logic
+#                     )
+#                     cart.update_total_amount()  # Update the total amount
+#                     response_data = {
+#                         "StatusCode": 6000,
+#                         "data": {
+#                             "message": "Successfully added to cart"
+#                         }
+#                     }
+#                 else:
+#                     response_data = {
+#                         "StatusCode": 6001,
+#                         "data": {
+#                             "message": "Already in cart"
+#                         }
+#                     }
+#             else:
+#                 response_data = {
+#                     "StatusCode": 6002,
+#                     "data": {
+#                         "message": "Product out of stock"
+#                     }
+#                 }
+#         else:
+#             response_data = {
+#                 "StatusCode": 6001,
+#                 "data": {
+#                     "message": "Product not found"
+#                 }
+#             }
+
+#     except Exception as e:
+#         response_data = {
+#             "status": 0,
+#             "api": request.get_full_path(),
+#             "request": request.data,
+#             "message": str(e),
+#         }
+#     return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
 def remove_from_cart(request, pk):
     try:
-        user = request.user
-        if Product.objects.filter(pk=pk).exists():
-            product = Product.objects.get(pk=pk)
-            cart = Cart.objects.get(user=user)
-
-            try:
-                cart_item = CartItem.objects.get(cart=cart, product=product)
-                cart_item.delete()
+        cart = Cart.objects.get(user=request.user)
+        if CartItem.objects.filter(pk=pk).exists():
+            item = CartItem.objects.get(pk=pk)
+            if item.cart == cart:
+                item.delete()
                 response_data = {
                     "StatusCode": 6000,
-                    "data": {
-                        "message": "Successfully removed from cart"
-                    }
+                    "data": {"data": "removed cart item succesfully"},
                 }
-            except CartItem.DoesNotExist:
+            else:
                 response_data = {
-                    "StatusCode": 6002,
-                    "data": {
-                        "message": "Item does not exist in the cart"
-                    }
+                    "StatusCode": 6001,
+                    "data": {"message": "You dont have permission"},
                 }
         else:
             response_data = {
                 "StatusCode": 6001,
-                "data": {
-                    "message": "Product not found"
-                }
+                "data": {"message": "Cart item not found"},
             }
     except Exception as e:
         response_data = {
@@ -256,34 +290,28 @@ def remove_from_cart(request, pk):
             "message": str(e),
         }
 
-    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
-
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])
 def view_cart_items(request):
     try:
         user = request.user
-        cart_items = CartItem.objects.filter(cart__user=user)
-        
+        cart = Cart.objects.get(user=user)
+        print(cart)
+        cart_items = CartItem.objects.filter(cart=cart)
+
         if not cart_items:
-            response_data = {
-                "StatusCode": 6001,
-                "data": {
-                    "message": "Cart is empty"
-                }
-            }
+            response_data = {"StatusCode": 6001, "data": {"message": "Cart is empty"}}
         else:
             serializer = CartItemSerializer(cart_items, many=True)
             response_data = {
                 "StatusCode": 6000,
-                "data": {
-                    "cart_items": serializer.data
-                }
+                "data": {"cart_items": serializer.data},
             }
-        
-        return Response({'app_data': response_data}, status=status.HTTP_200_OK)
-    
+
+        return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
     except Exception as e:
         response_data = {
             "status": 0,
@@ -291,59 +319,40 @@ def view_cart_items(request):
             "request": request.data,
             "message": str(e),
         }
-        return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+        return Response(
+            {"app_data": response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(["PUT"])
 def edit_cart_item(request, pk):
     try:
         user = request.user
-        if Product.objects.filter(pk=pk).exists():
-            product = Product.objects.get(pk=pk)
-            cart = Cart.objects.get(user=user)
-
-            try:
-                cart_item = CartItem.objects.get(cart=cart, product=product)
-                new_quantity = request.data.get('quantity')  # Get the new quantity from the request data
-                
-                # Update the quantity if a new value is provided and it's greater than 0
-                if new_quantity and int(new_quantity) > 0:
-                    old_quantity = cart_item.quantity  # Get the old quantity
-                    cart_item.quantity = new_quantity
-                    cart_item.save()
-
-                    # Calculate the difference in quantity and update the total amount
-                    quantity_difference = int(new_quantity) - old_quantity
-                    cart.total_amount += (quantity_difference * product.price)
-                    cart.save()
-                    
-                    response_data = {
-                        "StatusCode": 6000,
-                        "data": {
-                            "message": "Quantity updated successfully. Total amount updated accordingly."
-                        }
-                    }
-                else:
-                    response_data = {
-                        "StatusCode": 6003,
-                        "data": {
-                            "message": "Invalid quantity provided"
-                        }
-                    }
-            except CartItem.DoesNotExist:
-                response_data = {
-                    "StatusCode": 6002,
-                    "data": {
-                        "message": "Item does not exist in the cart"
-                    }
-                }
+        cart = Cart.objects.get(user=user)
+        try:
+            quantity = request.data["quantity"]
+        except:
+            quantity = None
+        try:
+            attribute_id = request.data["attribute_id"]
+        except:
+            attribute_id = None
+        if CartItem.objects.filter(pk=pk, cart=cart).exists():
+            cart_item = CartItem.objects.get(pk=pk)
+            if quantity:
+                cart_item.quantity = quantity
+            if attribute_id:
+                attribute = ProductAttribute.objects.get(pk=attribute_id)
+                cart_item.attribute = attribute
+            cart_item.save()
+            response_data = {
+                "StatusCode": 6000,
+                "data": {"message": "Updated item succesfully"},
+            }
         else:
             response_data = {
-                "StatusCode": 6001,
-                "data": {
-                    "message": "Product not found"
-                }
+                "StatusCode": 6000,
+                "data": {"message": "Cart item not found or dont have permission"},
             }
     except Exception as e:
         response_data = {
@@ -353,107 +362,80 @@ def edit_cart_item(request, pk):
             "message": str(e),
         }
 
-    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
 def purchase_items(request):
-    response_data = {}  
     try:
-        user = request.user
-        print(user)
-
+        transaction.set_autocommit(False)
+        cart = Cart.objects.get(user=request.user)
+        # Check if Cart Items Exist
         try:
-            cart = Cart.objects.get(user=user)
-            print(cart)
-        except Cart.DoesNotExist:
-            response_data = {
-                "status": 6001,
-                "message": "Cart not found",
-            }
-            return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+            refferal_id = request.data["refferal_id"]
+        except:
+            refferal_id = None
+        if CartItem.objects.filter(cart=cart).exists():
+            address = Address.objects.get(pk=request.data["address"])
+            cart_items = CartItem.objects.filter(cart=cart)
 
-        total_amount = cart.total_amount
-        print(total_amount)
-        serializer = PurchaseAmountSerializer(data=request.data)
-        if serializer.is_valid():
-            payment_method = request.data["payment_method"]
-            tax_amount = int(request.data["tax_amount"])
-           
-            #final amount is calculated
-            final_amount = total_amount + tax_amount
-            purchase_amount = PurchaseAmount.objects.create(
-                user=user,
-                total_amount=total_amount,
-                tax=tax_amount,
-                final_amount=final_amount,
-                payment_method=payment_method,
-               
-            )
-           
-            purchase_log = PurchaseLog.objects.create(
-                Purchases = purchase_amount
+            # Calculate Total Price
+            total_price = cart_items.aggregate(total_price=Sum("price"))["total_price"]
 
-            )
-            user_address = Address.objects.filter(user=user.userprofile).first()
+            # Create Purchase Object
             purchase = Purchase.objects.create(
-                user = user,
-                address = user_address,
-                total_amount = total_amount
+                total_amount=total_price,
+                user=request.user,
+                address=address,
+                status="Pending",
             )
-
-            for cart_item in cart.cart_items.all():
+            # Create PurchaseItems Objects
+            for cart_item in cart_items:
                 purchase_item = PurchaseItems.objects.create(
-                    purchase=purchase, 
+                    purchase=purchase,
                     product=cart_item.product,
                     quantity=cart_item.quantity,
                     price=cart_item.price,
-                   
                 )
-                try:
-                    attribute = Attribute.objects.get(product_varient__product=cart_item.product)
-                    attribute.quantity -= cart_item.quantity
-                    attribute.save()
-                except Attribute.DoesNotExist:
-                    response_data = {
-                        "status": 6001,
-                        "message": "Attribute does not exist"
-                    }
-            # Clear the user's cart after the purchase
-            cart.cart_items.all().delete()
-            cart.delete()
+            transaction.commit()
+            # Create Checkout Session
+            # strape = create_checkout_session(
+            #     currency="usd",
+            #     purchase_id=str(purchase.id),
+            #     unit_amount=2000,
+            #     quantity=1,
+            #     mode="payment",
+            #     success_url=f"https://api.youngsta.uk/api/v1/activities/success/{purchase.id}",
+            #     cancel_url="https://api.youngsta.uk/api/v1/payments/cancel/",
+            # )
+            order_data = create_checkout_session(total_price)
+
+            if refferal_id:
+                if Referral.objects.filter(pk=refferal_id).exists():
+                    referral = Referral.objects.get(pk=refferal_id)
+                    referral.order = purchase
+                    referral.purchase()
             response_data = {
-                "status": 6000,
-                "message": "Success",
-                "data": {
-                    "user": user.username,  
-                    "total": total_amount,
-                    "tax_amount": tax_amount,
-                    "Final Amount": final_amount,
-                    "payment_method": payment_method,
-                }
+                "StatusCode": 6000,
+                "data": {"razorpay": order_data, "purchase": purchase.id},
             }
         else:
-            response_data = {
-            "status": 6001,
-                "message": "Serializer validation failed",
-                "errors": serializer.errors
-            }
-            return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
-
+            response_data = {"StatusCode": 6001, "data": {"message": "No cart items"}}
     except Exception as e:
+        transaction.rollback()
         response_data = {
-            "status": 6001,
+            "status": 0,
             "api": request.get_full_path(),
             "request": request.data,
             "message": str(e),
         }
 
-    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
 
 # @api_view(["POST"])
 # def purchase_items(request):
-#     response_data = {}  
+#     response_data = {}
 #     try:
 #         user = request.user
 #         print(user)
@@ -514,7 +496,7 @@ def purchase_items(request):
 
 #             for cart_item in cart.cart_items.all():
 #                 purchase_item = PurchaseItems.objects.create(
-#                     purchase=purchase, 
+#                     purchase=purchase,
 #                     product=cart_item.product,
 #                     quantity=cart_item.quantity,
 #                     price=cart_item.price,
@@ -564,7 +546,6 @@ def purchase_items(request):
 #     return Response({'app_data': response_data}, status=status.HTTP_200_OK)
 
 
-
 @api_view(["GET"])
 def viewPurchase(request):
     try:
@@ -573,22 +554,17 @@ def viewPurchase(request):
 
         if not purchase_items:
             response_data = {
-                "StatusCode" : 6001,
-                "data" : {
-                    "message" : "Purchase Items Empty"
-                }
+                "StatusCode": 6001,
+                "data": {"message": "Purchase Items Empty"},
             }
         if purchase_items:
-            serializers = ViewPurchaseDeatils(purchase_items , many=True)
+            serializers = ViewPurchaseDeatils(purchase_items, many=True)
             response_data = {
-                "StatusCode" :6000,
-                "data" : {
-                    "Purchased Item" : serializers.data
-                }
-
+                "StatusCode": 6000,
+                "data": {"Purchased Item": serializers.data},
             }
-            return Response({'app_data': response_data}, status=status.HTTP_200_OK)
-    
+            return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
     except Exception as e:
         response_data = {
             "status": 0,
@@ -596,8 +572,681 @@ def viewPurchase(request):
             "request": request.data,
             "message": str(e),
         }
-        return Response({'app_data': response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"app_data": response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
+@api_view(["GET"])
+@permission_classes((AllowAny,))
+def purchase_success(request, pk):
+    try:
+        purchase = Purchase.objects.get(pk=pk)
+        purchase.active = True
+        # Update purchase status and create a purchase log
+        purchase.save()
 
-        
+        # Create an Invoice for the successful purchase
+        invoice = Invoice.objects.create(
+            issued_at=timezone.now(),
+            customer_name=purchase.user.username,
+            total_amount=purchase.total_amount,
+            purchase=purchase,
+            is_paid=True,
+        )
+        cart = Cart.objects.get(user=purchase.user)
+        cart_items = CartItem.objects.filter(cart=cart)
+        cart_items.delete()
+        # Create a transaction log
+        profile = UserProfile.objects.get(user=purchase.user)
+        transaction_log = Transaction.objects.create(
+            user=profile, amount=purchase.total_amount, success=True
+        )
+        purchase_logs = PurchaseLog.objects.create(
+            purchase=purchase,
+            status="Pending",
+            description="Payment completed and preparing to for shipping",
+        )
+        transaction = Transaction.objects.create()
+        transaction.commit()
+        response_data = {
+            "StatusCode": 6000,
+            "data": {
+                "invoice_id": invoice.id  # Include the created Invoice ID in the response if needed
+            },
+        }
+        return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+    except Purchase.DoesNotExist:
+        response_data = {"StatusCode": 6001, "data": {"message": "Purchase not found"}}
+        return Response({"app_data": response_data}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(["GET"])
+@group_required(["admin"])
+def view_oders(request):
+    filter = request.GET.get("filter")
+    instances = Purchase.objects.filter(active=True).order_by("-created_at")
+    if filter == "All":
+        instances = instances
+    else:
+        instances = instances.filter(status=filter)
+    paginator = Paginator(instances, 10)
+    page = request.GET.get("page")
+
+    try:
+        instances = paginator.page(page)
+    except PageNotAnInteger:
+        instances = paginator.page(1)
+    except EmptyPage:
+        instances = paginator.page(paginator.num_pages)
+
+    has_next_page = instances.has_next()
+    next_page_number = instances.next_page_number() if has_next_page else 1
+
+    has_previous_page = instances.has_previous()
+    previous_page_number = instances.previous_page_number() if has_previous_page else 1
+    serializer = OrderSerializer(instances, many=True).data
+    pending_orders = Purchase.objects.filter(status="Pending").count()
+    response_data = {
+        "StatusCode": 6000,
+        "pending_orders": pending_orders,
+        "data": serializer,
+        "pagination_data": {
+            "current_page": instances.number,
+            "has_next_page": has_next_page,
+            "next_page_number": next_page_number,
+            "has_previous_page": has_previous_page,
+            "previous_page_number": previous_page_number,
+            "total_pages": paginator.num_pages,
+            "total_items": paginator.count,
+            "first_item": instances.start_index(),
+            "last_item": instances.end_index(),
+        },
+    }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def weekly_purchase(request):
+    weekly_data = (
+        Purchase.objects.annotate(week_start=TruncWeek("created_at"))
+        .values("week_start")
+        .annotate(total_amount=Sum("total_amount"))
+        .order_by("week_start")
+    )
+
+    labels = [week["week_start"].strftime("%Y-%m-%d") for week in weekly_data]
+    data = [week["total_amount"] for week in weekly_data]
+
+    purchases = Purchase.objects.values(
+        "id", "user", "address", "total_amount", "status", "purchase_items"
+    )
+
+    response_data = {
+        "StatusCode": 6000,
+        "data": {
+            "labels": labels,
+            "data": data,
+            "purchases": purchases,  # Add this line to include purchase data
+        },
+    }
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def order_stats(request):
+    today = datetime.now().date()
+    yesterday = today - timedelta(days=1)
+    first_day_of_month = today.replace(day=1)
+    last_day_of_last_month = first_day_of_month - timedelta(days=1)
+
+    today_orders = Purchase.objects.filter(created_at__date=today)
+    yesterday_orders = Purchase.objects.filter(created_at__date=yesterday)
+    this_month_orders = Purchase.objects.filter(
+        created_at__date__range=[first_day_of_month, today]
+    )
+    last_month_orders = Purchase.objects.filter(
+        created_at__date__range=[last_day_of_last_month, first_day_of_month]
+    )
+    all_time_sales = Purchase.objects.all()
+
+    stats = {
+        "today_orders": today_orders.aggregate(total_amount=Sum("total_amount"))[
+            "total_amount"
+        ]
+        or 0,
+        "yesterday_orders": yesterday_orders.aggregate(
+            total_amount=Sum("total_amount")
+        )["total_amount"]
+        or 0,
+        "this_month_orders": this_month_orders.aggregate(
+            total_amount=Sum("total_amount")
+        )["total_amount"]
+        or 0,
+        "last_month_orders": last_month_orders.aggregate(
+            total_amount=Sum("total_amount")
+        )["total_amount"]
+        or 0,
+        "all_time_sales": all_time_sales.aggregate(total_amount=Sum("total_amount"))[
+            "total_amount"
+        ]
+        or 0,
+    }
+
+    response_data = {
+        "StatusCode": 6000,
+        "data": stats,
+    }
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@group_required(
+    [
+        "admin",
+    ]
+)
+def view_statusses(request):
+    instance = PurchaseStatus.objects.all()
+    serialized = PurchaseStatusSerializer(
+        instance, context={"request": request}, many=True
+    ).data
+    response_data = {"StatusCode": 6000, "data": serialized}
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@group_required(
+    [
+        "admin",
+    ]
+)
+def add_purchase_log(request, pk):
+    try:
+        status_id = request.data["status"]
+        description = request.data.get("description")
+
+        purchase = get_object_or_404(Purchase, pk=pk)
+        purchase_log = PurchaseLog.objects.create(
+            Purchases=purchase, log_status=status_id, description=description
+        )
+        purchase.status = status_id
+        purchase.save()
+        response_data = {"StatusCode": 6000}
+
+    except Purchase.DoesNotExist:
+        response_data = {"StatusCode": 6001, "data": {"message": "Purchase not found"}}
+    except PurchaseStatus.DoesNotExist:
+        response_data = {
+            "StatusCode": 6001,
+            "data": {"message": "PurchaseStatus not found with this id"},
+        }
+    except KeyError:
+        response_data = {
+            "StatusCode": 6001,
+            "data": {"message": "status_id is required"},
+        }
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@group_required(["admin"])
+def view_order_count(request):
+    try:
+        purchase = Purchase.objects.all()
+        pending_purchase_count = (
+            PurchaseLogs.objects.filter(purchase__in=purchase, status__order_id=0)
+            .distinct("purchase")
+            .count()
+        )
+        order_proccessing_count = (
+            PurchaseLogs.objects.filter(purchase__in=purchase)
+            .exclude(status__order_id__in=[0, 5])
+            .distinct("purchase")
+            .count()
+        )
+        completed_purchase_count = (
+            PurchaseLogs.objects.filter(purchase__in=purchase, status__order_id=5)
+            .distinct("purchase")
+            .count()
+        )
+        total_count = purchase.count()
+
+        response_data = {
+            "StatusCode": 6000,
+            "data": {
+                "total_purchase_count": total_count,
+                "completed_purchase_count": completed_purchase_count,
+                "order_proccessing_count": order_proccessing_count,
+                "pending_purchase_count": pending_purchase_count,
+            },
+        }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes((AllowAny,))
+def create_refferal(request, pk):
+    try:
+        transaction.set_autocommit(False)
+        try:
+            refferal_code = request.data["refferal_code"]
+        except:
+            refferal_code = None
+
+        try:
+            email = request.data["email"]
+        except:
+            email = None
+        if refferal_code:
+            if UserProfile.objects.filter(refferal_code=refferal_code).exists():
+                reffered_by = UserProfile.objects.get(refferal_code=refferal_code)
+                if Product.objects.filter(pk=pk).exists():
+                    product = Product.objects.get(pk=pk)
+                    if email:
+                        if UserProfile.objects.filter(email=email).exists():
+                            reffered_to = UserProfile.objects.get(email=email)
+                        else:
+                            response_data = {
+                                "StatusCode": 6001,
+                                "data": {
+                                    "message": "profile with this email not found"
+                                },
+                            }
+                    else:
+                        reffered_to = None
+
+                    refferal = Referral.objects.create(
+                        referred_by=reffered_by,
+                        referred_to=reffered_to,
+                        product=product,
+                        refferal_status="pending",
+                    )
+                    transaction.commit()
+
+                    response_data = {
+                        "StatusCode": 6000,
+                        "data": {"message": "success", "refferal_id": refferal.id},
+                    }
+                else:
+                    response_data = {
+                        "StatusCode": 6001,
+                        "data": {"message": "Product not found"},
+                    }
+            else:
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": {"message": "refferal_code not found"},
+                }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {"message": "refferal_code is required"},
+            }
+    except Exception as e:
+        transaction.rollback()
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes((AllowAny,))
+def update_all_refferal(request):
+    try:
+        refferals = Referral.objects.filter(refferal_status="completed")
+        for refferal in refferals:
+            product = refferal.product
+            return_day = product.return_in
+            purchase = refferal.order
+            purchase_log = PurchaseLogs.objects.filter(purchase=purchase).latest(
+                "created_at"
+            )
+            if purchase_log.status.order_id == 5:
+                return_day = purchase_log.created_at + return_day
+                if return_day == datetime.date.today():
+                    refferal.refferal_status = "completed"
+                    refferal.save()
+                profile = UserProfile.objects.filter(user=refferal.referred_by)
+                if Wallet.objects.filter(referred_by=profile).exists():
+                    wallet = Wallet.objects.get(referred_by=profile)
+                    amount = float(wallet.balance) + float(refferal.referral_amount)
+                    wallet.balance = amount
+                    wallet.save()
+        response_data = {"StatusCode": 6000, "data": {"message": "success"}}
+    except Exception as e:
+        transaction.rollback()
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+# @group_required(["admin"])
+@permission_classes((AllowAny,))
+def admin_referals(request):
+    try:
+        instances = Referral.objects.all().order_by("-created_at")
+        paginator = Paginator(instances, 10)
+        page = request.GET.get("page")
+
+        try:
+            instances = paginator.page(page)
+        except PageNotAnInteger:
+            instances = paginator.page(1)
+        except EmptyPage:
+            instances = paginator.page(paginator.num_pages)
+
+        has_next_page = instances.has_next()
+        next_page_number = instances.next_page_number() if has_next_page else 1
+
+        has_previous_page = instances.has_previous()
+        previous_page_number = (
+            instances.previous_page_number() if has_previous_page else 1
+        )
+        serialized = RefferalSerializer(
+            instances, many=True, context={"request": request}
+        ).data
+        response_data = {
+            "StatusCode": 6000,
+            "data": serialized,
+            "pagination_data": {
+                "current_page": instances.number,
+                "has_next_page": has_next_page,
+                "next_page_number": next_page_number,
+                "has_previous_page": has_previous_page,
+                "previous_page_number": previous_page_number,
+                "total_pages": paginator.num_pages,
+                "total_items": paginator.count,
+                "first_item": instances.start_index(),
+                "last_item": instances.end_index(),
+            },
+        }
+    except Exception as e:
+        transaction.rollback()
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["view_refferal"])
+@permission_classes((AllowAny,))
+def view_refferal(request):
+    try:
+        response_data = {"StatusCode": 6000}
+    except Exception as e:
+        transaction.rollback()
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def user_orders(request):
+    try:
+        response_data = {"StatusCode": 600}
+    except Exception as e:
+        transaction.rollback()
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def wallet(request):
+    try:
+        user = request.user
+        profile = UserProfile.objects.get(user=user)
+        if Wallet.objects.filter(user=profile).exists():
+            wallet = Wallet.objects.get(user=profile)
+            response_data = {"StatusCode": 6000, "data": {"balance": wallet.balance}}
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {"message": "no wallet found for the user"},
+            }
+    except Exception as e:
+        transaction.rollback()
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def wallet_transaction(request):
+    try:
+        user = request.user
+        profile = UserProfile.objects.filter(user=user)
+        refferals = Referral.objects.filter(referred_by=user)
+        response_data = {
+            "StatusCode": 6000,
+        }
+    except Exception as e:
+        transaction.rollback()
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def orders(request):
+    try:
+        user = request.user
+        instances = Purchase.objects.filter(active=True, user=user).order_by(
+            "-created_at"
+        )
+        serializers = OrderSerializer(
+            instances, many=True, context={"request": request}
+        ).data
+        response_data = {"StatusCode": 6000, "data": serializers}
+    except Exception as e:
+        transaction.rollback()
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def view_accounts(request):
+    try:
+        # Retrieve all transactions and order by id
+        instances = Transaction.objects.filter(is_deleted=False).order_by("-id")
+
+        # Pagination
+        paginator = Paginator(instances, 10)  # Change 10 to your desired page size
+        page_number = request.GET.get("page")
+        instances = paginator.get_page(page_number)
+        has_next_page = instances.has_next()
+        has_previous_page = instances.has_previous()
+        next_page_number = instances.next_page_number() if has_next_page else None
+        previous_page_number = (
+            instances.previous_page_number() if has_previous_page else None
+        )
+
+        # Serialize transactions data
+        serialized = TransactionListSerializer(instances, many=True).data
+
+        # Calculate credit and debit amounts
+        credit = Transaction.objects.filter(is_deleted=False, credit=True).aggregate(
+            Sum("amount")
+        )["amount__sum"]
+        debit = Transaction.objects.filter(is_deleted=False, credit=False).aggregate(
+            Sum("amount")
+        )["amount__sum"]
+
+        # Prepare response data
+        amounts_data = {"credit": credit, "debit": debit}
+        pagination_data = {
+            "current_page": instances.number,
+            "has_next_page": has_next_page,
+            "next_page_number": next_page_number,
+            "has_previous_page": has_previous_page,
+            "previous_page_number": previous_page_number,
+            "total_pages": paginator.num_pages,
+            "total_items": paginator.count,
+            "first_item": instances.start_index(),
+            "last_item": instances.end_index(),
+        }
+        response_data = {
+            "StatusCode": 6000,
+            "data": serialized,
+            "amounts_data": amounts_data,
+            "pagination_data": pagination_data,
+        }
+        return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+        return Response(
+            {"app_data": response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(["GET"])
+def view_oder_detail(request, pk):
+    if Purchase.objects.filter(pk=pk).exists():
+        purchase = Purchase.objects.get(pk=pk)
+        user_profile = UserProfile.objects.get(user=purchase.user)
+        instance = PurchaseItems.objects.filter(purchase=purchase)
+        serialized = PurchaseItemSerializer(instance, many=True).data
+        address = AddressSerializer(purchase.address).data
+        response_data = {
+            "StatusCode": 6000,
+            "data": {
+                "name": f"{user_profile.first_name} {user_profile.last_name}",
+                "total_amount": purchase.total_amount,
+                "status": purchase.status,
+                "order_data": purchase.created_at,
+                "products": serialized,
+                "address": address,
+            },
+        }
+    else:
+        response_data = {
+            "StatusCode": 6001,
+            "data": {"message": "Order with id not found"},
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def purchase_failure(request, pk):
+    try:
+        purchase = Purchase.objects.get(pk=pk)
+        purchase.delete()
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def accounts_details(request):
+    try:
+        instance = Transaction.objects.all().order_by("created_at")
+        filter_value = request.GET.get("filter")
+        if filter_value == "Credit":
+            instance = instance.filter(credit=True)
+        elif filter_value == "Debit":
+            instance = instance.filter(credit=False)
+        elif filter_value == "Withdrawal":
+            # Assuming you meant to apply a different filter for "Withdrawal"
+            instance = instance.filter(withdrawal=True)
+        paginator = Paginator(instance, 10)  # Change 10 to your desired page size
+        page_number = request.GET.get("page")
+        paginated_instance = paginator.get_page(page_number)
+        has_next_page = paginated_instance.has_next()
+        has_previous_page = paginated_instance.has_previous()
+        next_page_number = (
+            paginated_instance.next_page_number() if has_next_page else None
+        )
+        previous_page_number = (
+            paginated_instance.previous_page_number() if has_previous_page else None
+        )
+        serialized = TransactionListSerializer(paginated_instance, many=True).data
+        credited_amount = instance.filter(credit=True).aggregate(
+            credited=Sum("amount")
+        )["credited"]
+        debited_amount = instance.filter(credit=False).aggregate(
+            credited=Sum("amount")
+        )["credited"]
+        pagination_data = {
+            "current_page": paginated_instance.number,
+            "has_next_page": has_next_page,
+            "next_page_number": next_page_number,
+            "has_previous_page": has_previous_page,
+            "previous_page_number": previous_page_number,
+            "total_pages": paginator.num_pages,
+            "total_items": paginator.count,
+            "first_item": paginated_instance.start_index(),
+            "last_item": paginated_instance.end_index(),
+        }
+        response_data = {
+            "StatusCode": 6000,
+            "data": {
+                "credited": credited_amount,
+                "debited": debited_amount,
+                "transactions": serialized,
+                "pagination_data": pagination_data,
+            },
+        }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)

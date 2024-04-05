@@ -9,6 +9,7 @@ from .serializers import *
 from api.v1.main.decorater import *
 from api.v1.main.functions import *
 from products.models import *
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 
 
@@ -217,4 +218,107 @@ def delete_aditem(request, pk):
             "message": f"An error occurred: {str(e)}"
         }
 
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@group_required(["admin"])
+def add_coupen(request):
+    try:
+        transaction.set_autocommit(False)
+        serialized = AddCoupenSerializer(data=request.data)
+        if serialized.is_valid():
+            # Extract data from the validated serializer
+            try:
+                offer = serialized.validated_data["offer"]
+            except:
+                offer = None
+            try:
+                offer_start_price = request.data["offer_start_price"]
+            except:
+                offer_start_price  = None
+            try:
+                offer_end_price = request.data["offer_end_price"]
+            except:
+                offer_end_price = None
+            try:
+                offer_price = request.data["offer_price"]
+            except:
+                offer_price = None
+            description = serialized.validated_data["description"]
+            validity = serialized.validated_data["validity"]
+
+            # Create the Coupens object
+            coupen = Coupens.objects.create(
+                offer=offer,
+                description=description,
+                validity=validity,
+                offer_start_price=offer_start_price,
+                offer_end_price = offer_end_price,
+                offer_price = offer_price
+            )
+
+            transaction.commit()
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": "Successfully added coupen",
+                    "coupen_code": coupen.code
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": serialized.errors,
+                "message": "Invalid data"
+            }
+    except Exception as e:
+        response_data = {
+            "StatusCode": 6001,
+            "message": f"An error occurred: {str(e)}"
+        }
+    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes((AllowAny,))
+def get_coupens(request):
+    instances = Coupens.objects.all()
+    paginator = Paginator(instances, 10)  # Show 10 instances per page.
+    page = request.GET.get('page')
+
+    try:
+        instances = paginator.page(page)
+    except PageNotAnInteger:
+        instances = paginator.page(1)
+    except EmptyPage:
+        instances = paginator.page(paginator.num_pages)
+
+    has_next_page = instances.has_next()
+    next_page_number = instances.next_page_number() if has_next_page else 1
+
+    has_previous_page = instances.has_previous()
+    previous_page_number = instances.previous_page_number() if has_previous_page else 1
+    
+    serialized = CoupenSerializer(
+        instances,
+        context={"request": request},
+        many=True
+    ).data
+
+    response_data = {
+        "status": 6000,  # Changed StatusCode to status
+        "data": serialized,
+        'pagination_data': {
+            'current_page': instances.number,
+            'has_next_page': has_next_page,
+            'next_page_number': next_page_number,
+            'has_previous_page': has_previous_page,
+            'previous_page_number': previous_page_number,
+            'total_pages': paginator.num_pages,
+            'total_items': paginator.count,
+            'first_item': instances.start_index(),
+            'last_item': instances.end_index(),
+        },
+    }
     return Response({'app_data': response_data}, status=status.HTTP_200_OK)

@@ -3,6 +3,7 @@ from main.models import *
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 
+
 STAFF_TYPE = [
     ('manager', 'Manager'),
     ('staff','staff'),
@@ -14,6 +15,8 @@ class AdminProfile(BaseModel):
     email = models.EmailField(max_length=155, blank=True, null=True)
     password = models.TextField(blank=True, null=True)
     user = models.OneToOneField("auth.User", on_delete=models.CASCADE)
+    country_code = models.CharField(max_length=5, blank=True, null=True)
+    phone_number = models.CharField(max_length=155, blank=True, null=True)
     device_token = models.TextField(blank=True)
 
     def save(self, *args, **kwargs):
@@ -48,20 +51,19 @@ class UserProfile(BaseModel):
     password = models.TextField(blank=True, null=True)
     user = models.OneToOneField("auth.User", on_delete=models.CASCADE)
     is_verified = models.BooleanField(default=False)
+    refferal_code = models.CharField(max_length=10,blank=True, null=True)
     device_token = models.TextField(blank=True)
 
     def save(self, *args, **kwargs):
         is_new = not self.pk  # Check if the instance is new
 
         super(UserProfile, self).save(*args, **kwargs)  # Call the parent's save method using UserProfile
-
         if is_new:  # If the instance is new
             admin_group, _ = Group.objects.get_or_create(name='users')  # Fetch or create the 'users' group
             self.user.groups.add(admin_group)  # Add the user to the 'users' group
             self.user.save()
-            
 
-
+    
     class Meta:
         db_table = "accounts_user_profile"
         verbose_name = "User Profile"
@@ -77,11 +79,16 @@ class UserProfile(BaseModel):
               return "UserProfile"
 
 class Address(BaseModel):
-    street = models.CharField(max_length=100)
-    city = models.CharField(max_length=50)
-    state = models.CharField(max_length=50)
-    postal_code = models.CharField(max_length=20)
-    country = models.CharField(max_length=50)
+    first_name = models.CharField(max_length=155, blank=True, null=True)
+    last_name = models.CharField(max_length=155, blank=True, null=True)
+    phone = models.CharField(max_length = 155, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    street = models.CharField(max_length=100, blank=True, null=True)
+    city = models.CharField(max_length=50, blank=True, null=True)
+    state = models.CharField(max_length=50, blank=True, null=True)
+    post_code = models.CharField(max_length=20, blank=True, null=True)
+    country = models.CharField(max_length=50, blank=True, null=True)
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, blank=True,null=True)
     primary = models.BooleanField(default=False)
 
@@ -90,7 +97,7 @@ class Address(BaseModel):
         verbose_name_plural = 'Addresses'
 
     def __str__(self):
-        return f"{self.street}, {self.city}, {self.state} {self.postal_code}, {self.country}"
+        return f"{self.street}, {self.city}, {self.state} {self.post_code}, {self.country}"
 
 
 
