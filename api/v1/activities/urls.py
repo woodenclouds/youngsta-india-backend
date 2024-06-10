@@ -30,9 +30,12 @@ urlpatterns = [
     re_path(
         r"^edit_cart_item/(?P<pk>.*)/$", views.edit_cart_item, name="edit_cart_item"
     ),
-    re_path(r"^view_cart_items/$", views.view_cart_items, name="view_cart_items"),
+    re_path(r"^view_cart_items/$", views.get_cart, name="view_cart_items"),
     re_path(r"^orders/$", views.orders, name="orders"),
+    re_path(r"^orders-details/(?P<pk>.*)/$", views.orders_details, name="orders"),
     re_path(r"^purchase_items/$", views.purchase_items, name="purchase_items"),
+    re_path(r"^return_items/(?P<pk>.*)/$", views.return_items, name="purchase_items"),
+    re_path(r"^cancel_items/(?P<pk>.*)/$", views.cancel_items, name="purchase_items"),
     re_path(
         r"^create-refferal/(?P<pk>.*)/$", views.create_refferal, name="create_refferal"
     ),
@@ -52,6 +55,8 @@ urlpatterns = [
     re_path(r"^admin/purchase-graph/$", views.weekly_purchase, name="view_purchases"),
     re_path(r"^admin/dashboard-data/$", views.order_stats, name="view_purchases"),
     re_path(r"^admin/view-status/$", views.view_statusses, name="view_statusses"),
+    re_path(r"^admin/get-service-availability/$", views.get_service_availability, name="view_statusses"),
+
     re_path(
         r"^admin/add-purchase-log/(?P<pk>.*)/$",
         views.add_purchase_log,

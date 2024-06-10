@@ -11,6 +11,8 @@ urlpatterns = [
     re_path(r"^verify/$", views.verify, name="verify"),
     re_path(r"^login/$", views.login, name="login"),
     re_path(r"^add_address/$", views.add_address, name="add_address"),
+    re_path(r"^account_details/$", views.account_details, name="add_address"),
+    re_path(r"^edit-account-details/$", views.edit_account_details, name="add_address"),
     re_path(r"^view_addresses/$", views.view_addresses, name="view_addresses"),
     re_path(
         r"^change_primary_address/(?P<address_id>.*)/$",

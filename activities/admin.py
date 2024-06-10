@@ -13,6 +13,8 @@ admin.site.register(WishlistItem, WishlistAdmin)
 
 admin.site.register(Cart)
 admin.site.register(CartItem)
+admin.site.register(ReturnStatusLog)
+admin.site.register(Return)
 
 
 class PurchaseListAdmin(admin.ModelAdmin):

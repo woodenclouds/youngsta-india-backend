@@ -22,6 +22,8 @@ from accounts.models import *
 from datetime import datetime, timedelta
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Subquery, OuterRef
+from .functions import *
+
 
 
 @api_view(["POST"])
@@ -34,7 +36,7 @@ def add_to_wishlist(request, pk):
                 wishlist = WishlistItem.objects.create(user=user, product=product)
                 response_data = {
                     "StatusCode": 6000,
-                    "data": {"message": "succesfully added to wishlist"},
+                    "data": {"message": "successfully added to wishlist"},
                 }
             else:
                 wishlist = WishlistItem.objects.get(user=user, product=product)
@@ -56,7 +58,7 @@ def add_to_wishlist(request, pk):
             "request": request.data,
             "message": str(e),
         }
-    return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
 @api_view(["PUT", "PATCH"])
@@ -124,7 +126,7 @@ def view_wishlist(request):
         user = request.user
         print(user.username)
         wishlist_items = WishlistItem.objects.filter(user=user)
-        serializer = WishlistItemSerializer(wishlist_items, many=True)
+        serializer = WishlistItemSerializer(wishlist_items,context = {"request":request} ,many=True)
 
         response_data = {
             "StatusCode": 200,
@@ -293,25 +295,73 @@ def remove_from_cart(request, pk):
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
+# @api_view(["GET"])
+# def view_cart_items(request):
+#     try:
+#         user = request.user
+#         if not user:
+#             response_data = {
+#                 "StatusCode":6001,
+#                 "data":{
+#                     "message":"user not found"
+#                 }
+#             }
+#         if Cart.objects.filter(user=user).exists():
+#             cart = Cart.objects.get(user=user)
+#         else:
+#             cart = Cart.objects.create(
+#                 user = user
+#             )
+#         cart_items = CartItem.objects.filter(cart=cart)
+#         if not cart_items:
+#             response_data = {"StatusCode": 6001, "data": {"message": "Cart is empty"}}
+#         else:
+#             serializer = CartItemSerializer(cart_items, many=True)
+#             response_data = {
+#                 "StatusCode": 6000,
+#                 "mead":"dscsds",
+#                 "data": {"cart_items": serializer.data},
+#             }
+
+#         return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+#     except Exception as e:
+#         response_data = {
+#             "status": 0,
+#             "api": request.get_full_path(),
+#             "request": request.data,
+#             "message": str(e),
+#         }
+#         return Response(
+#             {"app_data": response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#         )
+
+
 @api_view(["GET"])
-def view_cart_items(request):
+def get_cart(request):
     try:
-        user = request.user
-        cart = Cart.objects.get(user=user)
-        print(cart)
-        cart_items = CartItem.objects.filter(cart=cart)
+        print(request.user,":user")
+        if request.user is not None:  # Check if there is an authenticated user
+            if Cart.objects.filter(user=request.user).exists():
+                cart = Cart.objects.get(user=request.user)
+                cart_items = CartItem.objects.filter(cart=cart)
+                serializer = CartItemSerializer(cart_items,context={"request":request}, many=True)
 
-        if not cart_items:
-            response_data = {"StatusCode": 6001, "data": {"message": "Cart is empty"}}
+                response_data = {
+                    "StatusCode": 6000,
+                    "message": "Cart Items",
+                     "data": {"cart_items": serializer.data},
+                }
+            else:
+                response_data = {
+                    "StatusCode": 6001,
+                    "message": "Cart not found",
+                }
         else:
-            serializer = CartItemSerializer(cart_items, many=True)
             response_data = {
-                "StatusCode": 6000,
-                "data": {"cart_items": serializer.data},
+                "StatusCode": 6002,
+                "message": "User not authenticated",
             }
-
-        return Response({"app_data": response_data}, status=status.HTTP_200_OK)
-
     except Exception as e:
         response_data = {
             "status": 0,
@@ -319,10 +369,7 @@ def view_cart_items(request):
             "request": request.data,
             "message": str(e),
         }
-        return Response(
-            {"app_data": response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 @api_view(["PUT"])
 def edit_cart_item(request, pk):
@@ -431,6 +478,94 @@ def purchase_items(request):
         }
 
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+def return_items(request, pk):
+    try:
+        if not PurchaseItems.objects.filter(pk=pk).exists():
+            response_data = {
+                "StatusCode": 6001,
+                "data":{
+                    "message":"purchase item not found"
+                }
+            }
+
+        purchase_item = PurchaseItems.objects.get(pk=pk)
+        purchase_item.is_returned = True
+        purchase_item.save()
+
+        return_data = Return.objects.create(
+            purchase_item = purchase_item,
+            reason = "Test"
+        )
+        return_log = ReturnStatusLog.objects.create(
+            return_model = return_data,
+            status = "pending"
+        )
+        response_data = {
+            "StatusCode":6000,
+            "data":{
+                "message":"returned item successfully"
+            }
+        }
+    except Exception as e:
+        transaction.rollback()
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+def cancel_items(request, pk):
+    try:
+        # Check if the purchase item exists
+        if not PurchaseItems.objects.filter(pk=pk).exists():
+            return Response({
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Order item not exists"
+                }
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get the purchase item
+        purchase_item = PurchaseItems.objects.get(pk=pk)
+        
+        # Check if the user is authorized to cancel this item
+        if purchase_item.purchase.user != request.user:
+            return Response({
+                "StatusCode": 6001,
+                "data": {
+                    "message": "You are not authorized to cancel this item"
+                }
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Mark the item as cancelled
+        purchase_item.is_cancelled = True
+        purchase_item.save()
+        
+        # Return success response
+        return Response({
+            "StatusCode": 6000,
+            "data": {
+                "message": "Item cancelled successfully"
+            }
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        # Rollback the transaction in case of error
+        transaction.rollback()
+        return Response({
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # @api_view(["POST"])
@@ -626,11 +761,19 @@ def purchase_success(request, pk):
 @group_required(["admin"])
 def view_oders(request):
     filter = request.GET.get("filter")
-    instances = Purchase.objects.filter(active=True).order_by("-created_at")
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+    instances = Purchase.objects.all()  # Initialize instances here
+
     if filter == "All":
-        instances = instances
+        pass  # No need to change instances
     else:
         instances = instances.filter(status=filter)
+
+    if filter == "Return":
+        instance = Return.objects.filter(is_deleted=False)
+    if start_date and end_date:
+        instances = instances.filter(created_at__range=[start_date, end_date]).order_by("-created_at")
     paginator = Paginator(instances, 10)
     page = request.GET.get("page")
 
@@ -646,11 +789,29 @@ def view_oders(request):
 
     has_previous_page = instances.has_previous()
     previous_page_number = instances.previous_page_number() if has_previous_page else 1
-    serializer = OrderSerializer(instances, many=True).data
+
+    if not filter == "Return":
+        serializer = OrderSerializer(instances, many=True).data
+    else:
+        serializer = ReturnSerializer(instance, many=True).data
+
     pending_orders = Purchase.objects.filter(status="Pending").count()
+    all_count = Purchase.objects.filter(is_deleted=False).count()
+    accepted_count = Purchase.objects.filter(status="Accepted").count()
+    shipped_count = Purchase.objects.filter(status="Shipped").count()
+    delivered_count = Purchase.objects.filter(status="Delivered").count()
+    cancelled_count = Purchase.objects.filter(status="Cancelled").count()
+    Return_count = Purchase.objects.filter(status="Return").count()
+
     response_data = {
         "StatusCode": 6000,
         "pending_orders": pending_orders,
+        "all_count": all_count,
+        "accepted_count": accepted_count,
+        "shipped_count": shipped_count,
+        "delivered_count": delivered_count,
+        "cancelled_count": cancelled_count,
+        "Return_count": Return_count,
         "data": serializer,
         "pagination_data": {
             "current_page": instances.number,
@@ -757,7 +918,42 @@ def view_statusses(request):
     response_data = {"StatusCode": 6000, "data": serialized}
 
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+@api_view(["POST"])
+def get_service_availability(request):
+    try:
+        pin_code = request.data["pin_code"]
+    except:
+        pin_code = None
+    cart = Cart.objects.get(user=request.user)
+    if not pin_code:
+        response_data = {
+            "StatusCode":6001,
+            "data":{
+                "message":"pin_code is required"
+            }
+        }
+    if not cart:
+        response_data = {
+            "StatusCode":6001,
+            "data":{
+                "message":"Cart not found"
+            }
+        }
+    try:
+        service_availability = getServiceAvailability(cart, pin_code)
+    except Exception as e:
+        return Response({
+            "StatusCode": 6002,
+            "data": {
+                "message": str(e)
+            }
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    response_data = {
+        "StatusCode": 200,
+        "data": service_availability
+    }
 
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 @api_view(["POST"])
 @group_required(
@@ -776,7 +972,16 @@ def add_purchase_log(request, pk):
         )
         purchase.status = status_id
         purchase.save()
-        response_data = {"StatusCode": 6000}
+        if status_id == "Accepted":
+            token = generateAccessShiprocket()
+            create_order = createOrder(purchase)
+        response_data = {
+            "StatusCode": 6000,
+            "data":{
+                "message":"Successfully updated status",
+                "response": create_order
+            }
+            }
 
     except Purchase.DoesNotExist:
         response_data = {"StatusCode": 6001, "data": {"message": "Purchase not found"}}
@@ -1089,6 +1294,30 @@ def orders(request):
         }
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
+@api_view(["GET"])
+def orders_details(request,pk):
+    try:
+        user = request.user
+        if Purchase.objects.filter(pk=pk).exists():
+            purchase = Purchase.objects.get(pk=pk)
+            instances = PurchaseItems.objects.filter(purchase)
+            serializers = OrderDetailSerializer(instances,many=True)
+        else:
+            response_data ={
+                "StatusCode":6001,
+                "data":{
+                    "message":"order not found"
+                }
+            }
+    except Exception as e:
+        transaction.rollback()
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 @api_view(["GET"])
 def view_accounts(request):
@@ -1194,59 +1423,61 @@ def purchase_failure(request, pk):
 
 @api_view(["GET"])
 def accounts_details(request):
-    try:
-        instance = Transaction.objects.all().order_by("created_at")
-        filter_value = request.GET.get("filter")
-        if filter_value == "Credit":
-            instance = instance.filter(credit=True)
-        elif filter_value == "Debit":
-            instance = instance.filter(credit=False)
-        elif filter_value == "Withdrawal":
-            # Assuming you meant to apply a different filter for "Withdrawal"
-            instance = instance.filter(withdrawal=True)
-        paginator = Paginator(instance, 10)  # Change 10 to your desired page size
-        page_number = request.GET.get("page")
-        paginated_instance = paginator.get_page(page_number)
-        has_next_page = paginated_instance.has_next()
-        has_previous_page = paginated_instance.has_previous()
-        next_page_number = (
-            paginated_instance.next_page_number() if has_next_page else None
-        )
-        previous_page_number = (
-            paginated_instance.previous_page_number() if has_previous_page else None
-        )
-        serialized = TransactionListSerializer(paginated_instance, many=True).data
-        credited_amount = instance.filter(credit=True).aggregate(
-            credited=Sum("amount")
-        )["credited"]
-        debited_amount = instance.filter(credit=False).aggregate(
-            credited=Sum("amount")
-        )["credited"]
-        pagination_data = {
-            "current_page": paginated_instance.number,
-            "has_next_page": has_next_page,
-            "next_page_number": next_page_number,
-            "has_previous_page": has_previous_page,
-            "previous_page_number": previous_page_number,
-            "total_pages": paginator.num_pages,
-            "total_items": paginator.count,
-            "first_item": paginated_instance.start_index(),
-            "last_item": paginated_instance.end_index(),
-        }
-        response_data = {
-            "StatusCode": 6000,
-            "data": {
-                "credited": credited_amount,
-                "debited": debited_amount,
-                "transactions": serialized,
-                "pagination_data": pagination_data,
-            },
-        }
-    except Exception as e:
-        response_data = {
-            "status": 0,
-            "api": request.get_full_path(),
-            "request": request.data,
-            "message": str(e),
-        }
+    # try:
+    instance = Transaction.objects.all().order_by("created_at")
+    filter_value = request.GET.get("filter")
+    if filter_value == "Credit":
+        instance = instance.filter(credit=True)
+    elif filter_value == "Debit":
+        instance = instance.filter(credit=False)
+    elif filter_value == "Withdrawal":
+        # Assuming you meant to apply a different filter for "Withdrawal"
+        instance = instance.filter(withdrawal=True)
+    paginator = Paginator(instance, 10)  # Change 10 to your desired page size
+    page_number = request.GET.get("page")
+    paginated_instance = paginator.get_page(page_number)
+    has_next_page = paginated_instance.has_next()
+    has_previous_page = paginated_instance.has_previous()
+    next_page_number = (
+        paginated_instance.next_page_number() if has_next_page else None
+    )
+    previous_page_number = (
+        paginated_instance.previous_page_number() if has_previous_page else None
+    )
+    serialized = TransactionListSerializer(paginated_instance, many=True).data
+    credited_amount = instance.filter(credit=True).aggregate(
+        credited=Sum("amount")
+    )["credited"]
+    debited_amount = instance.filter(credit=False).aggregate(
+        credited=Sum("amount")
+    )["credited"]
+    credited_amount = credited_amount if credited_amount is not None else 0
+    debited_amount = debited_amount if debited_amount is not None else 0
+    pagination_data = {
+        "current_page": paginated_instance.number,
+        "has_next_page": has_next_page,
+        "next_page_number": next_page_number,
+        "has_previous_page": has_previous_page,
+        "previous_page_number": previous_page_number,
+        "total_pages": paginator.num_pages,
+        "total_items": paginator.count,
+        "first_item": paginated_instance.start_index(),
+        "last_item": paginated_instance.end_index(),
+    }
+    response_data = {
+        "StatusCode": 6000,
+        "data": {
+            "credited": credited_amount,
+            "debited": debited_amount,
+            "transactions": serialized,
+            "pagination_data": pagination_data,
+        },
+    }
+    # except Exception as e:
+    #     response_data = {
+    #         "status": 0,
+    #         "api": request.get_full_path(),
+    #         "request": request.data,
+    #         "message": str(e),
+    #     }
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)

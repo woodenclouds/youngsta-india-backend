@@ -8,6 +8,7 @@ app_name = "api_v1_products"
 urlpatterns = [
     # -----------------public------------
     re_path(r"^category/$", views.categories, name="categories"),
+    re_path(r"^admin-category/$", views.adminCategories, name="categories"),
     re_path(r"^brands/$", views.brands, name="brands"),
     re_path(r"^viewproduct/$", views.viewProduct, name="viewProduct"),
     re_path(
@@ -56,6 +57,11 @@ urlpatterns = [
     re_path(r"^admin/add-attribute/$", views.add_new_attribute, name="add_attribute"),
     re_path(r"^admin/product/$", views.admin_product, name="admin_product"),
     re_path(r"^admin/addCategory/$", views.addCategory, name="add_category"),
+    re_path(
+        r"^admin/deleteCategory/(?P<pk>.*)/$",
+        views.deleteCategory,
+        name="delete_category",
+    ),
     re_path(r"^admin/addBrand/$", views.addBrand, name="add_brand"),
     re_path(r"^admin/viewBrands/$", views.brands, name="view_Brands"),
     re_path(r"^admin/editBrands/(?P<pk>.*)/$", views.editBrand, name="view_Brands"),
@@ -79,6 +85,7 @@ urlpatterns = [
         name="view_Attribute",
     ),
     re_path(r"^admin/addProduct/$", views.addProductNew, name="add_product"),
+    re_path(r"^admin/editProduct/$", views.editProduct, name="add_product"),
     re_path(r"^view-productcode/$", views.viewProductCode, name="view_productcode"),
     re_path(r"^get-varients/$", views.get_varients, name="get_varients"),
     # re_path(r'^admin/addProduct/$', views.addProduct, name="add_product"),

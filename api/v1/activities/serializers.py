@@ -23,8 +23,9 @@ class WishlistItemSerializer(serializers.ModelSerializer):
         )
 
     def get_product_info(self, instance):
+        request = self.context.get("request")
         product = Product.objects.get(pk=instance.product.id)
-        serialized = ProductViewSerializer(product).data
+        serialized = ProductViewSerializer(product,context={"request":request}).data
         return serialized
 
 
@@ -42,8 +43,9 @@ class CartItemSerializer(serializers.ModelSerializer):
         )
 
     def get_product_info(self, instance):
+        request = self.context.get("request")
         product = Product.objects.get(pk=instance.product.id)
-        serialized = ProductViewSerializer(product).data
+        serialized = ProductViewSerializer(product,context = {"request": request}).data
         return serialized
 
 
@@ -61,12 +63,6 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
         fields = ["id", "purchase", "product", "quantity", "price"]
 
 
-# class PurchaseSerializer(serializers.ModelSerializer):
-#     purchase_items = CartItemSerializer(many=True, read_only=True)
-
-#     class Meta:
-#         model = Purchase
-#         fields = ['id', 'user', 'total_amount', 'purchase_items']
 
 
 class PurchaseAmountSerializer(serializers.ModelSerializer):
@@ -277,6 +273,8 @@ class OrderSerializer(serializers.ModelSerializer):
             "address",
         )
 
+
+
     def get_status(self, instance):
         if PurchaseLog.objects.filter(Purchases=instance).exists():
             status_instance = PurchaseLog.objects.filter(Purchases=instance).latest(
@@ -312,7 +310,7 @@ class TransactionListSerializer(serializers.ModelSerializer):
 
     def get_user_details(self, instance):
         user_profile = {
-            "name": instance.user.last_name + " " + instance.user.last_name,
+            "name": f"{instance.user.last_name} {instance.user.last_name}",
             "phone_number": instance.user.phone_number,
         }
         return user_profile
@@ -323,7 +321,7 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseItems
-        fields = ("id", "product_details", "quantity", "attribute", "price")
+        fields = ("id", "product_details", "quantity", "attribute", "price","is_cancelled", "is_returned")
 
     def get_product_details(self, instance):
         thumbnail = ProductImages.objects.filter(
@@ -335,3 +333,53 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
             "thumbnail": thumbnail.image,
         }
         return product_detail
+
+class ReturnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Return
+        fields = "__all__"
+
+
+class ReturnSerializer(serializers.ModelSerializer):
+    status = serializers.SerializerMethodField()
+    customer_details = serializers.SerializerMethodField()
+    invoice_no = serializers.SerializerMethodField()
+    address = serializers.SerializerMethodField()
+    total_amount = serializers.SerializerMethodField()
+    # product_details = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Return
+        fields = (
+            "id",
+            "created_at",
+            "status",
+            "total_amount",
+            "customer_details",
+            "invoice_no",
+            "address",
+        )
+
+
+
+    def get_status(self, instance):
+        return "Accepted"
+
+    def get_address(self, instance):
+        address = AddressSerializer(instance.purchase_item.purchase.address).data
+        return address
+
+    def get_customer_details(self, instance):
+        user = UserProfile.objects.get(user=instance.purchase_item.purchase.user)
+        customer_details = {
+            "name": f"{user.first_name} {user.last_name}",
+            "phone": f"{user.country_code} {user.phone_number}",
+        }
+        return customer_details
+    
+    def get_total_amount(self, instance):
+        total_amount = instance.purchase_item.price
+        return total_amount
+
+    def get_invoice_no(self, instance):
+        return "".join(random.choices(string.ascii_uppercase + string.digits, k=6))

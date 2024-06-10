@@ -185,10 +185,14 @@ class Product(models.Model):
     referal_Amount = models.DecimalField(
         max_digits=10, decimal_places=2, blank=True, null=True
     )
+    gst_price = models.BigIntegerField(blank=True, null=True)
     weight = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     length = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     height = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     width = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    cashback = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True
+    )
     featured = models.BooleanField(default=False, blank=True, null=True)
     flash_sale = models.BooleanField(default=False, blank=True, null=True)
     offer = models.IntegerField(blank=True, null=True)

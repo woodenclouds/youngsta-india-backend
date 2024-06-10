@@ -15,6 +15,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from datetime import datetime, timedelta
 from django.db.models import Q
 from django.db.models import Count
+from django.shortcuts import get_object_or_404
 
 
 @api_view(["GET"])
@@ -210,7 +211,48 @@ def categories(request):
         }
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
-
+@api_view(["GET"])
+@group_required(["admin"])
+def adminCategories(request):
+    try:
+        page = request.GET.get("page", 1)
+        instances = Category.objects.all().order_by("position")
+        paginator = Paginator(instances, 10)
+        try:
+            paginated_instances = paginator.page(page)
+        except PageNotAnInteger:
+            paginated_instances = paginator.page(1)
+        except EmptyPage:
+            paginated_instances = paginator.page(paginator.num_pages)
+        serialized = ViewCategorySerializer(paginated_instances, many=True)
+        response_data = {
+            "StatusCode": 6000,
+            "data": serialized.data,
+            "pagination_data": {
+                "current_page": paginated_instances.number,
+                "has_next_page": paginated_instances.has_next(),
+                "next_page_number": paginated_instances.next_page_number() if paginated_instances.has_next() else None,
+                "has_previous_page": paginated_instances.has_previous(),
+                "previous_page_number": paginated_instances.previous_page_number() if paginated_instances.has_previous() else None,
+                "total_pages": paginator.num_pages,
+                "total_items": paginator.count,
+                "first_item": paginated_instances.start_index(),
+                "last_item": paginated_instances.end_index(),
+            },
+        }
+    except Exception as e:
+        transaction.rollback()
+        errType = e.__class__.__name__
+        errors = {errType: traceback.format_exc()}
+        response_data = {
+            "StatusCode": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors,
+        }
+    
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 @api_view(["PUT", "PATCH"])
 @group_required(["admin"])
 def editCategory(request, pk):
@@ -316,37 +358,30 @@ def editCategoryPosition(request, pk):
 def deleteCategory(request, pk):
     try:
         category = Category.objects.get(pk=pk)
-        category.is_deleted = True
-        category.save()
-
-        # Update the order of all categories
-        all_categories = Category.objects.annotate(
-            is_deleted_int=Case(
-                When(is_deleted=True, then=Value(1)),
-                default=Value(0),
-                output_field=IntegerField(),
-            )
-        ).order_by("is_deleted_int", "position")
-
-        for i, current_category in enumerate(all_categories, start=1):
-            current_category.position = i
-            current_category.save()
+        category_name = category.name
+        category.delete()
         response_data = {
             "StatusCode": 6000,
-            "data": {"message": f"{category.name} deleted successfully"},
+            "data": {"message": f"{category_name} deleted successfully"},
         }
+        return Response({"app_data": response_data}, status=status.HTTP_200_OK)
     except Category.DoesNotExist:
-        response_data = {"StatusCode": 6001, "data": {"message": "Category not found"}}
-    except Exception as e:
         response_data = {
-            "status": 0,
+            "StatusCode": 6001,
+            "data": {"message": "Category not found"},
+        }
+        return Response({"app_data": response_data}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        errType = e.__class__.__name__
+        errors = {errType: traceback.format_exc()}
+        response_data = {
+            "StatusCode": 0,
             "api": request.get_full_path(),
             "request": request.data,
             "message": str(e),
-            "response": {"error": "An error occurred while deleting the category"},
+            "response": {"error": "An error occurred while deleting the category", "trace": errors},
         }
-
-    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+        return Response({"app_data": response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])
@@ -811,12 +846,22 @@ def editAttribute(request, pk):
 @group_required(["admin"])
 def deleteAttribute(request, pk):
     try:
-        attribute = Attribute.objects.get(pk=pk)
-        attribute.delete()  # Remove the attribute completely from the database
-        response_data = {
-            "StatusCode": 6000,
-            "data": {"message": f"Attribute '{attribute.title}' deleted successfully"},
-        }
+        if AttributeType.objects.filter(pk=pk).exists():
+            attribute = AttributeType.objects.get(pk=pk)
+            attribute.delete()  # Remove the attribute completely from the database
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": f"Attribute '{attribute.name}' deleted successfully"
+                },
+            }
+        else:
+            response_data = {
+                "StatusCode":6001,
+                "data":{
+                    "message":"attribute not found"
+                }
+            }
     except Attribute.DoesNotExist:
         response_data = {"StatusCode": 6001, "data": {"message": "Attribute not found"}}
     except Exception as e:
@@ -1099,31 +1144,19 @@ def editSubCategory(request, pk):
 @group_required(["admin"])
 def deleteSubCategory(request, pk):
     try:
-        subcategory = SubCategory.objects.get(pk=pk)
-        subcategory.is_deleted = True
-        subcategory.save()
+        if SubCategory.objects.filter(pk=pk).exists():
+            category = SubCategory.objects.get(pk=pk)
+            category.delete()
+            response_data = {
+                "StatusCode": 6000,
+                "data": {"message": "removed sub category"},
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {"message": "sub category not found"},
+            }
 
-        # Update the order of all categories
-        all_subcategories = SubCategory.objects.annotate(
-            is_deleted_int=Case(
-                When(is_deleted=True, then=Value(1)),
-                default=Value(0),
-                output_field=IntegerField(),
-            )
-        ).order_by("is_deleted_int", "position")
-
-        for i, current_subcategory in enumerate(all_subcategories, start=1):
-            current_subcategory.position = i
-            current_subcategory.save()
-        response_data = {
-            "StatusCode": 6000,
-            "data": {"message": f"{subcategory.name} deleted successfully"},
-        }
-    except Category.DoesNotExist:
-        response_data = {
-            "StatusCode": 6001,
-            "data": {"message": "Sub Category not found"},
-        }
     except Exception as e:
         response_data = {
             "status": 0,
@@ -1826,6 +1859,7 @@ def addProductNew(request):
             subcategory_id = request.data["subcategory_id"]
             actual_price = request.data["price"]
             selling_price = request.data["price"]
+            gst_price = request.data["gst_price"]
             return_in = request.data["return_in"]
             name = request.data["name"]
             description = request.data["name"]
@@ -1862,6 +1896,10 @@ def addProductNew(request):
                 product_code = request.data["product_code"]
             except:
                 product_code = ""
+            try:
+                gst_price = request.data["gst_price"]
+            except:
+                gst_price = "";
             if attributes and images:
                 if SubCategory.objects.filter(pk=subcategory_id).exists():
                     product = Product.objects.create(
@@ -1878,6 +1916,7 @@ def addProductNew(request):
                         height=height,
                         weight=weight,
                         length=length,
+                        gst_price=gst_price,
                     )
                     # serialized.save()
                     for attribute in attributes:
@@ -1945,6 +1984,101 @@ def addProductNew(request):
 
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
+
+@api_view(["POST"])
+def editProduct(request):
+    try:
+        id = request.data["id"]
+        if Product.objects.filter(pk=id).exists():
+            product = Product.objects.get(pk=id)
+            product.name = request.data["name"]
+            product.description = request.data["description"]
+            product.product_sku = request.data["product_sku"]
+            product.actual_price = request.data["actual_price"]
+            product.selling_price = request.data["selling_price"]
+            product.return_in = request.data["return_in"]
+            product.referal_Amount = request.data["referal_Amount"]
+            product.weight = request.data["weight"]
+            product.height = request.data["height"]
+            product.length = request.data["length"]
+            product.width = request.data["width"]
+            product.save()
+            attributes = request.data["attribute"]
+            thumbnail = request.data["thumbnail"]
+            images = request.data["images"]
+            print(attributes,"______")
+            for attribute in attributes:
+                try:
+                    if ProductAttribute.objects.filter(pk=attribute["id"]).exists():
+                        attribute_obj = ProductAttribute.objects.get(pk=attribute["id"])
+                        attribute_obj.quantity = attribute.quantity
+                        attribute_obj.save()
+                    else:
+                        if AttributeDescription.objects.filter(pk=attribute["attributeDescription"]).exists():
+                            attribute_description = AttributeDescription.objects.get(pk=attribute["attributeDescription"])
+                            attribute_obj = ProductAttribute.objects.create(
+                                product=product,
+                                attribute_description=attribute_description,
+                                quantity=attribute["quantity"]
+                            )
+                        else:
+                            response_data = {
+                                "StatusCode":6001,
+                                "data":{
+                                    "message":"not valid"
+                                }
+                            }
+                except Exception as e:
+                    response_data = {
+                        "StatusCode":6001,
+                        "data":{
+                            "message":str(e)
+                        }
+                    }
+                    
+            for image in images:
+                if ProductImages.objects.filter(pk=image["id"]).exists():
+                    product_image = ProductImages.objects.get(pk=image["id"])
+                    product_image.delete()
+                    new_image = ProductImages.objects.create(
+                        product = product,
+                        image = image["image"],
+                        thumbnail = False
+                    )
+                else:
+                    new_image = ProductImages.objects.create(
+                        product = product,
+                        image = image["image"],
+                        thumbnail = False
+                    )
+            thumbnail_image = ProductImages.objects.create(
+                product = product,
+                image = thumbnail,
+                thumbnail = True
+            )
+            response_data = {
+                "StatusCode":6000,
+                "data":{
+                    "message":"updated product"
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode":6001,
+                "data":{
+                    "message":"product not found"
+                }
+            }
+    except Exception as e:
+        transaction.rollback()
+        # Handle exceptions
+        error_message = str(e)
+        response_data = {
+            "StatusCode": 500,  # Adjust status code as needed
+            "message": f"Error creating attributes: {error_message}",
+        }
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 @api_view(["GET"])
 @group_required(
@@ -2236,29 +2370,32 @@ def view_stock(request, pk):
 @api_view(["POST"])
 def update_quantity(request):
     try:
-        datas = request.data.get(
-            "datas", []
-        )  # Using .get() to handle potential key error
+        datas = request.data.get("datas", [])
         for data in datas:
-            product_attribute = ProductAttribute.objects.get(pk=data["id"])
-            product_attribute.quantity = int(
-                data["quantity"]
-            )  # Accessing dictionary values with ['quantity']
+            product_attribute = get_object_or_404(ProductAttribute, pk=data["id"])
+            product_attribute.quantity = int(data["quantity"])
             product_attribute.save()
+        
         response_data = {
-            "status": 6000,  # Changed StatusCode to status
-            "data": {"message": "Successfully changed"},
+            "status": 6000,
+            "data": {
+                "message": "Successfully changed"
+                },
         }
         status_code = status.HTTP_200_OK
+    except ProductAttribute.DoesNotExist:
+        response_data = {
+            "status": "error",
+            "message": "Product attribute not found.",
+        }
+        status_code = status.HTTP_404_NOT_FOUND
     except Exception as e:
         error_message = str(e)
         response_data = {
             "status": "error",
-            "message": f"Error updating quantities: {error_message}",  # Changed the error message
+            "message": f"Error updating quantities: {error_message}",
         }
-        status_code = (
-            status.HTTP_400_BAD_REQUEST
-        )  # Set appropriate status code for error
+        status_code = status.HTTP_400_BAD_REQUEST
 
     return Response({"app_data": response_data}, status=status_code)
 

@@ -12,7 +12,6 @@ from products.models import *
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 
-
 @api_view(["POST"])
 @group_required(["admin"])  # Replace with your permission logic
 def add_advertisement(request):
@@ -23,14 +22,14 @@ def add_advertisement(request):
             response_data = {
                 "StatusCode": 600,
                 "data": serializer.data,
-                "message": "Advertisement added successfully"
+                "message": "Advertisement added successfully",
             }
-            return Response({'app_data': response_data}, status=status.HTTP_201_CREATED)
+            return Response({"app_data": response_data}, status=status.HTTP_201_CREATED)
         else:
             response_data = {
                 "StatusCode": 6001,
                 "data": serializer.errors,
-                "message": "Invalid data"
+                "message": "Invalid data",
             }
     except Exception as e:
         response_data = {
@@ -39,9 +38,7 @@ def add_advertisement(request):
             "request": request.data,
             "message": str(e),
         }
-    return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
-
-
+    return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["GET"])
@@ -50,10 +47,7 @@ def view_advertisement(request):
     try:
         advertisements = Ads.objects.all()
         serialized = AdsSerializer(advertisements, many=True).data
-        response_data = {
-            "StatusCode": 6000,
-            "data": serialized
-        }
+        response_data = {"StatusCode": 6000, "data": serialized}
     except Exception as e:
         response_data = {
             "status": 0,
@@ -61,8 +55,7 @@ def view_advertisement(request):
             "request": request.data,
             "message": str(e),
         }
-    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
-
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
 @api_view(["PUT", "PATCH"])
@@ -71,26 +64,23 @@ def edit_ads(request, pk):
     try:
         advertisement = Ads.objects.get(pk=pk)
         serializer = AdsSerializer(advertisement, data=request.data, partial=True)
-        
+
         if serializer.is_valid():
             serializer.save()
             response_data = {
                 "StatusCode": 6000,
                 "data": serializer.data,
-                "message": "Advertisement updated successfully"
+                "message": "Advertisement updated successfully",
             }
-            return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+            return Response({"app_data": response_data}, status=status.HTTP_200_OK)
         else:
             response_data = {
                 "StatusCode": 6001,
                 "data": serializer.errors,
-                "message": "Invalid data"
+                "message": "Invalid data",
             }
     except Ads.DoesNotExist:
-        response_data = {
-            "StatusCode": 404,
-            "message": "Advertisement does not exist"
-        }
+        response_data = {"StatusCode": 404, "message": "Advertisement does not exist"}
     except Exception as e:
         response_data = {
             "status": 0,
@@ -98,12 +88,7 @@ def edit_ads(request, pk):
             "request": request.data,
             "message": str(e),
         }
-    return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-
+    return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["DELETE"])
@@ -115,21 +100,14 @@ def delete_ads(request, pk):
         ad.delete()  # Delete the ad
         response_data = {
             "StatusCode": 200,
-            "message": f"Advertisement '{ad.title}' deleted successfully with its related items"
+            "message": f"Advertisement '{ad.title}' deleted successfully with its related items",
         }
     except Ads.DoesNotExist:
-        response_data = {
-            "StatusCode": 404,
-            "message": "Advertisement does not exist"
-        }
+        response_data = {"StatusCode": 404, "message": "Advertisement does not exist"}
     except Exception as e:
-        response_data = {
-            "StatusCode": 500,
-            "message": f"An error occurred: {str(e)}"
-        }
+        response_data = {"StatusCode": 500, "message": f"An error occurred: {str(e)}"}
 
-    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
-
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -142,14 +120,14 @@ def add_aditem(request):
             response_data = {
                 "StatusCode": 600,
                 "data": serializer.data,
-                "message": "AdItem added successfully"
+                "message": "AdItem added successfully",
             }
-            return Response({'app_data': response_data}, status=status.HTTP_201_CREATED)
+            return Response({"app_data": response_data}, status=status.HTTP_201_CREATED)
         else:
             response_data = {
                 "StatusCode": 601,
                 "data": serializer.errors,
-                "message": "Invalid data"
+                "message": "Invalid data",
             }
     except Exception as e:
         response_data = {
@@ -158,7 +136,7 @@ def add_aditem(request):
             "request": request.data,
             "message": str(e),
         }
-    return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["PUT", "PATCH"])
@@ -167,26 +145,23 @@ def edit_aditem(request, pk):
     try:
         ad_item = AdsItem.objects.get(pk=pk)
         serializer = AdsItemSerializer(ad_item, data=request.data, partial=True)
-        
+
         if serializer.is_valid():
             serializer.save()
             response_data = {
                 "StatusCode": 200,
                 "data": serializer.data,
-                "message": "AdItem updated successfully"
+                "message": "AdItem updated successfully",
             }
-            return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+            return Response({"app_data": response_data}, status=status.HTTP_200_OK)
         else:
             response_data = {
                 "StatusCode": 400,
                 "data": serializer.errors,
-                "message": "Invalid data"
+                "message": "Invalid data",
             }
     except AdsItem.DoesNotExist:
-        response_data = {
-            "StatusCode": 404,
-            "message": "AdItem does not exist"
-        }
+        response_data = {"StatusCode": 404, "message": "AdItem does not exist"}
     except Exception as e:
         response_data = {
             "status": 0,
@@ -194,7 +169,7 @@ def edit_aditem(request, pk):
             "request": request.data,
             "message": str(e),
         }
-    return Response({'app_data': response_data}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["DELETE"])
@@ -203,22 +178,13 @@ def delete_aditem(request, pk):
     try:
         ad_item = AdsItem.objects.get(pk=pk)
         ad_item.delete()
-        response_data = {
-            "StatusCode": 200,
-            "message": "AdItem deleted successfully"
-        }
+        response_data = {"StatusCode": 200, "message": "AdItem deleted successfully"}
     except AdsItem.DoesNotExist:
-        response_data = {
-            "StatusCode": 404,
-            "message": "AdItem does not exist"
-        }
+        response_data = {"StatusCode": 404, "message": "AdItem does not exist"}
     except Exception as e:
-        response_data = {
-            "StatusCode": 500,
-            "message": f"An error occurred: {str(e)}"
-        }
+        response_data = {"StatusCode": 500, "message": f"An error occurred: {str(e)}"}
 
-    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -236,7 +202,7 @@ def add_coupen(request):
             try:
                 offer_start_price = request.data["offer_start_price"]
             except:
-                offer_start_price  = None
+                offer_start_price = None
             try:
                 offer_end_price = request.data["offer_end_price"]
             except:
@@ -254,8 +220,8 @@ def add_coupen(request):
                 description=description,
                 validity=validity,
                 offer_start_price=offer_start_price,
-                offer_end_price = offer_end_price,
-                offer_price = offer_price
+                offer_end_price=offer_end_price,
+                offer_price=offer_price,
             )
 
             transaction.commit()
@@ -263,21 +229,46 @@ def add_coupen(request):
                 "StatusCode": 6000,
                 "data": {
                     "message": "Successfully added coupen",
-                    "coupen_code": coupen.code
-                }
+                    "coupen_code": coupen.code,
+                },
             }
         else:
             response_data = {
                 "StatusCode": 6001,
                 "data": serialized.errors,
-                "message": "Invalid data"
+                "message": "Invalid data",
             }
     except Exception as e:
-        response_data = {
-            "StatusCode": 6001,
-            "message": f"An error occurred: {str(e)}"
-        }
-    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+        response_data = {"StatusCode": 6001, "message": f"An error occurred: {str(e)}"}
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+def editCoupen(request, pk):
+    try:
+        data = request.data
+        if Coupens.objects.filter(pk=pk).exists():
+            coupen = Coupens.objects.get(pk=pk)
+            coupen.offer = data["offer"]
+            coupen.offer_end_price = data["offer_end_price"]
+            coupen.offer_start_price = data["offer_start_price"]
+            coupen.offer_price = data["offer_price"]
+            coupen.save()
+            response_data = {"StatusCode": 6000, "data": {"message": "coupen updated"}}
+    except Exception as e:
+        response_data = {"StatusCode": 6001, "message": f"An error occurred: {str(e)}"}
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["DELETE"])
+def deleteCoupen(request, pk):
+    try:
+        if Coupens.objects.filter(pk=pk).exists():
+            Coupens.objects.get(pk=pk).delete()
+            response_data = {"StatusCode": 6000, "data": {"message": "deleted coupen"}}
+    except Exception as e:
+        response_data = {"StatusCode": 6001, "message": f"An error occurred: {str(e)}"}
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])
@@ -285,7 +276,7 @@ def add_coupen(request):
 def get_coupens(request):
     instances = Coupens.objects.all()
     paginator = Paginator(instances, 10)  # Show 10 instances per page.
-    page = request.GET.get('page')
+    page = request.GET.get("page")
 
     try:
         instances = paginator.page(page)
@@ -299,26 +290,24 @@ def get_coupens(request):
 
     has_previous_page = instances.has_previous()
     previous_page_number = instances.previous_page_number() if has_previous_page else 1
-    
+
     serialized = CoupenSerializer(
-        instances,
-        context={"request": request},
-        many=True
+        instances, context={"request": request}, many=True
     ).data
 
     response_data = {
         "status": 6000,  # Changed StatusCode to status
         "data": serialized,
-        'pagination_data': {
-            'current_page': instances.number,
-            'has_next_page': has_next_page,
-            'next_page_number': next_page_number,
-            'has_previous_page': has_previous_page,
-            'previous_page_number': previous_page_number,
-            'total_pages': paginator.num_pages,
-            'total_items': paginator.count,
-            'first_item': instances.start_index(),
-            'last_item': instances.end_index(),
+        "pagination_data": {
+            "current_page": instances.number,
+            "has_next_page": has_next_page,
+            "next_page_number": next_page_number,
+            "has_previous_page": has_previous_page,
+            "previous_page_number": previous_page_number,
+            "total_pages": paginator.num_pages,
+            "total_items": paginator.count,
+            "first_item": instances.start_index(),
+            "last_item": instances.end_index(),
         },
     }
-    return Response({'app_data': response_data}, status=status.HTTP_200_OK)
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)

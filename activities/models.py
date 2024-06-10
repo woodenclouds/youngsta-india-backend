@@ -35,6 +35,15 @@ LOG_STATUS = [
     ("Return", "Return"),
 ]
 
+RETURN_CHOICE = [
+    ("pending", "Pending"),
+    ("accepted", "Accepted"),
+    ("rejected", "Rejected"),
+    ("collected", "Collected"),
+    ("refund", "Refund"),
+    ("completed", "Completed"),
+]
+
 
 class ActivityLog(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -203,6 +212,8 @@ class PurchaseItems(BaseModel):
         "products.ProductAttribute", on_delete=models.CASCADE, blank=True, null=True
     )
     price = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
+    is_returned = models.BooleanField(default=False, blank=True, null=True)
+    is_cancelled = models.BooleanField(default=False, blank=True, null=True)
 
     def __str__(self):
         return f"{self.product.name} in {self.purchase.user.username}'s purchase"
@@ -232,20 +243,20 @@ class PurchaseStatus(BaseModel):
         verbose_name_plural = "Purchase Statuses"
 
 
-# class PurchaseLogs(BaseModel):
-#     purchase = models.ForeignKey(
-#         Purchase, on_delete=models.CASCADE, blank=True, null=True
-#     )
-#     status = models.ForeignKey(
-#         PurchaseStatus, on_delete=models.CASCADE, blank=True, null=True
-#     )
-#     description = models.TextField(blank=True, null=True)
+class PurchaseLogs(BaseModel):
+    purchase = models.ForeignKey(
+        Purchase, on_delete=models.CASCADE, blank=True, null=True
+    )
+    status = models.ForeignKey(
+        PurchaseStatus, on_delete=models.CASCADE, blank=True, null=True
+    )
+    description = models.TextField(blank=True, null=True)
 
-#     class Meta:
-#         db_table = "activities_purchase_log"
-#         managed = True
-#         verbose_name = "Purchase Log"
-#         verbose_name_plural = "Purchase Logs"
+    class Meta:
+        db_table = "activities_purchase_log"
+        managed = True
+        verbose_name = "Purchase Log"
+        verbose_name_plural = "Purchase Logs"
 
 
 class Referral(BaseModel):
@@ -275,3 +286,25 @@ class Referral(BaseModel):
         managed = True
         verbose_name = "Referral"
         verbose_name_plural = "Referrals"
+
+class ReturnStatusLog(BaseModel):
+    status = models.CharField(choices = RETURN_CHOICE ,max_length=155, blank=True, null=True)
+    return_model = models.ForeignKey('Return', related_name='return_mod', on_delete=models.CASCADE)
+    class Meta:
+        db_table = "activities_return_status"
+        managed = True
+        verbose_name = "Return Status"
+        verbose_name_plural = "Return Status"
+
+class Return(BaseModel):
+    purchase_item = models.ForeignKey('PurchaseItems', related_name='purchase_item', on_delete=models.CASCADE)
+    reason = models.TextField(blank=True, null=True)
+    return_remarks = models.TextField(blank=True, null=True)
+
+    class Meta:
+        db_table = "activities_return"
+        managed = True
+        verbose_name = "Return"
+        verbose_name_plural = "Returns"
+
+    

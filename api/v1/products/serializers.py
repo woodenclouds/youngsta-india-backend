@@ -76,7 +76,7 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
     stock = serializers.SerializerMethodField()
     thumbnail = serializers.SerializerMethodField()
     attribute = serializers.SerializerMethodField()
-    category = serializers.SerializerMethodField()
+    # category = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
 
     class Meta:
@@ -84,7 +84,7 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "name",
-            "category",
+            # "category",
             "description",
             "product_sku",
             "actual_price",
@@ -109,8 +109,12 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
         return stock["total_stock"]
 
     def get_thumbnail(self, instance):
-        image = ProductImages.objects.get(product=instance, thumbnail=True)
-        return image.image
+        image = ProductImages.objects.filter(product=instance, thumbnail=True).latest('created_at')
+        if image:
+            image = image.image
+        else:
+            image = None
+        return image
 
     def get_attribute(self, instance):
         attributes = ProductAttribute.objects.filter(product=instance)
@@ -121,7 +125,10 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
         return serialized
 
     def get_category(self, instance):
-        category = instance.sub_category.category.name
+        if instance.sub_category:
+            category = instance.sub_category.category.name
+        else:
+            category = ""
         return category
 
     def get_images(self, instance):
@@ -352,7 +359,7 @@ class ProductViewSerializer(serializers.ModelSerializer):
 
     def get_thumbnail(self, instance):
         try:
-            image = ProductImages.objects.get(product=instance, thumbnail=True)
+            image = ProductImages.objects.filter(product=instance, thumbnail=True).latest("created_at")
             return image.image
         except ProductImages.DoesNotExist:
             return None  # Handle the case where no thumbnail is found
@@ -372,8 +379,11 @@ class ProductViewSerializer(serializers.ModelSerializer):
 
     def get_is_wishlist(self, instance):
         request = self.context.get("request")
-        user = request.user
-        if user and user.is_authenticated:
+        user_id = request.user.id
+        print(user_id)
+
+        if user_id :
+            user = User.objects.get(pk=user_id)
             if WishlistItem.objects.filter(user=user, product=instance).exists():
                 return True
             else:
@@ -561,7 +571,7 @@ class InventorySerializers(serializers.ModelSerializer):
         fields = ("id", "name", "thumbnail", "stock", "product_code")
 
     def get_thumbnail(self, instance):
-        image = ProductImages.objects.get(product=instance, thumbnail=True)
+        image = ProductImages.objects.filter(product=instance, thumbnail=True).latest("created_at")
         return image.image
 
     def get_stock(self, instance):
