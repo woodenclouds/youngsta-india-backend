@@ -95,6 +95,17 @@ def createOrder(purchase):
     response = requests.post(api, headers=headers, json=payload)
     if response.status_code == 200:
         order_response = response.json()
+        bill_api = "https://apiv2.shiprocket.in/v1/external/orders/print/invoice"
+        headers = {
+            'Authorization': f'Bearer {generateAccessShiprocket()}',
+            'Content-Type': 'application/json'
+        }
+        payload = {
+            "ids": [order_response["order_id"]],
+        }
+        bill_response = requests.post(api, headers=headers, json=payload)
+        print(bill_response,"____bill response")
+        
         print(f"Order created successfully: {order_response}")
         return order_response
     else:

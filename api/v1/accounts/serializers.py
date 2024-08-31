@@ -56,6 +56,8 @@ class ViewCostomerSerializer(serializers.ModelSerializer):
 #     post_code = serializers.CharField()
 
 class AddressSerializer(serializers.ModelSerializer):
+    post_code = serializers.RegexField(regex=r'^\d{6}$', error_messages={'invalid': 'Post code must be a 6 digit number'})
+
     class Meta:
         model = Address
         fields = (

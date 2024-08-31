@@ -52,6 +52,18 @@ def signup(request):
                 if not Otp.objects.filter(email=email).exists():
                     ot_obj = Otp.objects.create(email=email, otp=otp)
                     send_otp_email(email, otp)
+                    if User.objects.filter(email=email).exists():
+                        user = User.objects.get(email=email)
+                        if UserProfile.objects.filter(user=user, is_verified = False).exists():
+                            profile = UserProfile.objects.get(user=user,is_verified = False)
+                            profile.delete()
+                            user.delete()
+                        elif UserProfile.objects.filter(user=user, is_verified = True).exists():
+                            response_data = {
+                                "StatusCode": 6001,
+                                "data": {"message": "User already exists"},
+                                }
+                            
                     user = User.objects.create_user(username=email, password=password)
                     enc_password = encrypt(password)
                     code = generate_referral_code()

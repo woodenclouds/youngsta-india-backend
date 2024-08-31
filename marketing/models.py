@@ -45,6 +45,7 @@ class Coupens(BaseModel):
             MaxValueValidator(99),
             MinValueValidator(10),
         ],
+        default=0,
         blank=True,
         null=True
     )
@@ -53,7 +54,7 @@ class Coupens(BaseModel):
     active = models.BooleanField(default=True)
     offer_start_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     offer_end_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    offer_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    offer_price = models.DecimalField(max_digits=10, decimal_places=2,default=0, blank=True, null=True)
 
     class Meta:
         db_table='coupens'
@@ -61,6 +62,9 @@ class Coupens(BaseModel):
         verbose_name = 'Coupen'
         verbose_name_plural = 'Coupens'
 
+    @property
+    def is_expired(self):
+        return self.validity < timezone.now().date()
 
     def save(self, *args, **kwargs):
         if not self.code:
@@ -74,3 +78,40 @@ class Coupens(BaseModel):
             generated_code = ''.join(random.choice(characters) for _ in range(15))
         return generated_code
     
+
+class Banners(BaseModel):
+    section = models.PositiveBigIntegerField(blank=True, null=True)
+    slider = models.BooleanField(default=False, blank=True, null=True)
+
+    class Meta:
+        db_table = "banners"
+        managed =True,
+        verbose_name = "Banner"
+        verbose_name_plural = "Banners"
+
+
+class BannerItems(BaseModel):
+    banner = models.ForeignKey(Banners, on_delete=models.CASCADE, related_name="banner_items")
+    image = models.TextField( blank=True, null=True)
+    filter = models.TextField(blank=True, null=True)
+    order_id = models.PositiveIntegerField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'banner_items'
+        managed = True
+        verbose_name = 'Banner Item'
+        verbose_name_plural = 'Banner Items'
+
+
+class Enquiry(BaseModel):
+    name = models.CharField(max_length=255, blank=True, null=True)
+    email = models.EmailField(max_length=255, blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    message = models.TextField(blank=True, null=True)
+    subject = models.TextField(blank=True, null=True)
+
+    class Meta:
+        db_table = "enquiry"
+        managed = True
+        verbose_name = "Enquiry"
+        verbose_name_plural = "Enquiries"

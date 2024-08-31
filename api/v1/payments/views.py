@@ -104,7 +104,8 @@ def create_order(request):
                 purchase = Purchase.objects.create(
                     user=user,
                     total_amount=total_price,
-                    address = address
+                    address = address,
+                    is_deleted = True
                 )
                 for item in cart_items:
                     purchase_item = PurchaseItems.objects.create(
@@ -114,6 +115,25 @@ def create_order(request):
                         attribute= item.attribute,
                         price=item.price,
                     )
+                    if item.referral_code:
+                        if  UserProfile.objects.filter(refferal_code=item.referral_code).exists():
+                            user_refered = UserProfile.objects.get(refferal_code=item.referral_code)
+                            refferal_instance = Referral.objects.create(
+                                product = item.product,
+                                referred_by = user_refered.user,
+                                referred_to = customer_profile.user,
+                                referral_amount = item.product.referal_Amount,
+                                order = purchase,
+                                is_paid = False
+                            )
+                            wallet = Wallet.objects.get(user=user_refered)
+                            wallet.balance += item.product.referal_Amount
+                            wallet.save()
+                cart.total_amount = 0
+                cart.coupen_offer = 0
+                cart.coupon_code = ''
+                cart.product_total = 0
+                cart.save()
                 cash_free_args = {
                     "request": request,
                     "customer_profile": customer_profile,
@@ -122,9 +142,9 @@ def create_order(request):
                 cash_free_create_order_response, payment_link_status = create_cash_free_order(
                     cash_free_args
                 )
-                print(cash_free_create_order_response,"_____response")
                 if cash_free_create_order_response.status_code == 200 and payment_link_status:
                     cash_free_create_order_response = cash_free_create_order_response.json()
+
                     response_data = {
                         "StatusCode": 6000,
                         "data": {
@@ -185,6 +205,7 @@ def handle_response(request):
             user_profile = UserProfile.objects.get(user=purchase.user)
             if order_status["order_status"] == "ACTIVE":
                 purchase.status = "Pending"
+                purchase.is_deleted = False
                 purchase.save()
                 purchase_item = PurchaseItems.objects.filter(purchase=purchase)
                 for item in purchase_item:

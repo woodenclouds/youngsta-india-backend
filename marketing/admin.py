@@ -18,3 +18,6 @@ admin.site.register(AdsItem,AdItemAdmin)
 
 
 admin.site.register(Coupens)
+admin.site.register(Banners)
+admin.site.register(BannerItems)
+admin.site.register(Enquiry)

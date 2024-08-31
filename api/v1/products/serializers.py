@@ -76,21 +76,26 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
     stock = serializers.SerializerMethodField()
     thumbnail = serializers.SerializerMethodField()
     attribute = serializers.SerializerMethodField()
+    attribute_type = serializers.SerializerMethodField()
     # category = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = (
             "id",
             "name",
-            # "category",
+            "category",
             "description",
             "product_sku",
             "actual_price",
             "selling_price",
+            "gst_price",
             "return_in",
             "referal_Amount",
+            "attribute_type",
+            "sub_category",
             "featured",
             "thumbnail",
             "images",
@@ -123,6 +128,27 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
             many=True,
         ).data
         return serialized
+    
+    def get_attribute_type(self, instance):
+        attributes = ProductAttribute.objects.filter(product=instance)
+        if not attributes.exists():
+            return None
+        # Assuming each product has attributes with the same attribute type
+        attribute_type = attributes.first().attribute_description.attribute_type
+        values = []
+        attribute_descriptions = AttributeDescription.objects.filter(attribute_type=attribute_type)
+        for attribute_description in attribute_descriptions:
+            values.append({
+                "id": attribute_description.id,
+                "value": attribute_description.value,
+            })
+        data = {
+            "id": attribute_type.id,
+            "name": attribute_type.name,
+            "values": values
+        }
+        return data
+
 
     def get_category(self, instance):
         if instance.sub_category:

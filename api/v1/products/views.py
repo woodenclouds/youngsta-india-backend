@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from django.db.models import Q
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
+from django.db.models.query import QuerySet
 
 
 @api_view(["GET"])
@@ -1397,24 +1398,26 @@ def viewProduct(request):
         if category_name:
             category_name = category_name.replace("-", " ")
             try:
-                category = Category.objects.get(Q(name__icontains=category_name))
+                category = Category.objects.get(Q(name=category_name))
                 subcategories = SubCategory.objects.filter(category=category)
                 if query.filter(sub_category__in=subcategories).exists():
                     query = query.filter(sub_category__in=subcategories)
                 else:
                     query = get_sub_categories(subcategories)
             except Category.DoesNotExist:
-                try:
-                    subcategory = SubCategory.objects.get(name=category_name)
+                subcategory = SubCategory.objects.filter(name=category_name).first()
+                if subcategory:
                     if query.filter(sub_category=subcategory).exists():
                         query = query.filter(sub_category=subcategory)
                     else:
-                        query = get_sub_categories(subcategory)
-
-                except SubCategory.DoesNotExist:
+                        query = get_sub_categories([subcategory])
+                else:
                     query = Product.objects.none()
-
-        query = query.order_by("name")
+        
+        if isinstance(query, QuerySet):
+            query = query.order_by("name")
+        else:
+            query.sort(key=lambda x: x.name)
         paginator = Paginator(query, 10)
         page = request.GET.get("page")
 
@@ -1900,6 +1903,10 @@ def addProductNew(request):
                 gst_price = request.data["gst_price"]
             except:
                 gst_price = "";
+            try:
+                cashback = request.data["cashback"]
+            except:
+                cashback = 0
             if attributes and images:
                 if SubCategory.objects.filter(pk=subcategory_id).exists():
                     product = Product.objects.create(
@@ -1911,6 +1918,7 @@ def addProductNew(request):
                         price=selling_price,
                         return_in=return_in,
                         referal_Amount=referal_amount,
+                        cashback = cashback,
                         offer=offer,
                         width=width,
                         height=height,
@@ -1930,7 +1938,6 @@ def addProductNew(request):
                             quantity=attribute.get("quantity", 0),
                         )
                     for image in images:
-                        print(image, "___________")
                         product_image = ProductImages.objects.create(
                             product=product,
                             image=image.get("image"),
@@ -2002,32 +2009,29 @@ def editProduct(request):
             product.height = request.data["height"]
             product.length = request.data["length"]
             product.width = request.data["width"]
+            product.gst_price = request.data["gst_price"]
+            existing_images = ProductImages.objects.filter(product=product)
+            existing_images.delete()
             product.save()
             attributes = request.data["attribute"]
             thumbnail = request.data["thumbnail"]
             images = request.data["images"]
-            print(attributes,"______")
+            if request.data["sub_category"]:
+                sub_pk= request.data["sub_category"]
+                if SubCategory.objects.filter(pk=sub_pk).exists():
+                    sub_category = SubCategory.objects.get(pk=sub_pk)
+                    product.sub_category = sub_category
+            product_attribute = ProductAttribute.objects.filter(product=product)
+            product_attribute.delete()
             for attribute in attributes:
                 try:
-                    if ProductAttribute.objects.filter(pk=attribute["id"]).exists():
-                        attribute_obj = ProductAttribute.objects.get(pk=attribute["id"])
-                        attribute_obj.quantity = attribute.quantity
-                        attribute_obj.save()
-                    else:
-                        if AttributeDescription.objects.filter(pk=attribute["attributeDescription"]).exists():
-                            attribute_description = AttributeDescription.objects.get(pk=attribute["attributeDescription"])
-                            attribute_obj = ProductAttribute.objects.create(
-                                product=product,
-                                attribute_description=attribute_description,
-                                quantity=attribute["quantity"]
-                            )
-                        else:
-                            response_data = {
-                                "StatusCode":6001,
-                                "data":{
-                                    "message":"not valid"
-                                }
-                            }
+                    attribute_description = AttributeDescription.objects.get(pk=attribute["attributeDescription"])
+                    attribute_obj = ProductAttribute.objects.create(
+                            product=product,
+                            attribute_description=attribute_description,
+                            quantity=attribute["quantity"]
+                        )
+                     
                 except Exception as e:
                     response_data = {
                         "StatusCode":6001,
@@ -2035,22 +2039,9 @@ def editProduct(request):
                             "message":str(e)
                         }
                     }
-                    
-            for image in images:
-                if ProductImages.objects.filter(pk=image["id"]).exists():
-                    product_image = ProductImages.objects.get(pk=image["id"])
-                    product_image.delete()
-                    new_image = ProductImages.objects.create(
-                        product = product,
-                        image = image["image"],
-                        thumbnail = False
-                    )
-                else:
-                    new_image = ProductImages.objects.create(
-                        product = product,
-                        image = image["image"],
-                        thumbnail = False
-                    )
+            
+            new_images = [ProductImages(product=product, image=img["image"], thumbnail=False) for img in images]
+            ProductImages.objects.bulk_create(new_images)
             thumbnail_image = ProductImages.objects.create(
                 product = product,
                 image = thumbnail,
@@ -2290,7 +2281,7 @@ def inventory(request):
         if type == "all":
             instances = Product.objects.annotate(
                 total_quantity=Sum("productattribute__quantity")
-            ).filter(total_quantity__gt=0)
+            )
         elif type == "out_of_stock":
             instances = Product.objects.annotate(
                 total_quantity=Sum("productattribute__quantity")

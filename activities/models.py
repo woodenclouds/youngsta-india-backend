@@ -153,14 +153,17 @@ class WishlistItem(BaseModel):
 class Cart(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     total_amount = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
-
+    coupen_offer = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
+    coupon_code = models.CharField(max_length=155, blank=True, null=True)
+    product_total = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
+    
     def __str__(self):
         return f"Cart for {self.user.username}"
 
-    def update_total_amount(self):
-        total = sum(item.price * item.quantity for item in self.cart_items.all())
-        self.total_amount = total
-        self.save()
+    def save(self, *args, **kwargs):
+        if self.product_total is not None and self.coupen_offer is not None:
+            self.total_amount = self.product_total - self.coupen_offer
+        super().save(*args, **kwargs)
 
 
 class CartItem(BaseModel):
@@ -173,7 +176,8 @@ class CartItem(BaseModel):
     attribute = models.ForeignKey(
         "products.ProductAttribute", on_delete=models.CASCADE, blank=True, null=True
     )
-
+    referral_code = models.CharField(max_length=155, blank=True, null=True)
+    coupon_code = models.CharField(max_length=155, blank=True, null=True)
     def __str__(self):
         return f"{self.product.name} in {self.cart.user.username}'s cart"
 
@@ -192,6 +196,7 @@ class Purchase(BaseModel):
     order_status = models.CharField(max_length=255, blank=True, null=True)
     refferal = models.CharField(max_length=10, blank=True, null=True)
     active = models.BooleanField(default=True, blank=True, null=True)
+    invoice_no = models.CharField(max_length=10, blank=True, null=True)
 
     def __str__(self):
         return f"Purchase for {self.user.username}"
@@ -201,7 +206,13 @@ class Purchase(BaseModel):
         self.total_amount = total
         self.save()
 
-
+    def save(self, *args, **kwargs):
+        import random
+        import string
+        if not self.invoice_no:
+            self.invoice_no = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        super().save(*args, **kwargs)
+        
 class PurchaseItems(BaseModel):
     purchase = models.ForeignKey(
         Purchase, on_delete=models.CASCADE, related_name="purchase_items"

@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Subquery, OuterRef
 from .functions import *
+from marketing.models import *
 
 
 
@@ -162,7 +163,15 @@ def add_to_cart(request, pk):
                     attribute_description = ProductAttribute.objects.get(
                         pk=attribute_id
                     )
+                    if attribute_description.quantity < quantity:
+                        response_data = {
+                            "StatusCode": 6001,
+                            "data":{
+                                "message": "Requested quantity exceeds available stock"
+                            }
+                        }
                     cart = Cart.objects.get(user=user)
+                    
                     if not CartItem.objects.filter(cart=cart, product=product).exists():
                         cart_item = CartItem.objects.create(
                             cart=cart,
@@ -171,6 +180,8 @@ def add_to_cart(request, pk):
                             quantity=Decimal(quantity),
                             price=product.selling_price * Decimal(quantity),
                         )
+                        cart.product_total += cart_item.price
+                        cart.save()
                         response_data = {
                             "StatusCode": 6000,
                             "data": {"message": "Added to cart"},
@@ -350,7 +361,12 @@ def get_cart(request):
                 response_data = {
                     "StatusCode": 6000,
                     "message": "Cart Items",
-                     "data": {"cart_items": serializer.data},
+                     "data": {
+                         "total_price":cart.total_amount,
+                         "discount":cart.coupen_offer,
+                         "product_total":cart.product_total,
+                         "cart_items": serializer.data
+                         },
                 }
             else:
                 response_data = {
@@ -384,14 +400,17 @@ def edit_cart_item(request, pk):
             attribute_id = request.data["attribute_id"]
         except:
             attribute_id = None
-        if CartItem.objects.filter(pk=pk, cart=cart).exists():
-            cart_item = CartItem.objects.get(pk=pk)
+        cart_item = CartItem.objects.filter(pk=pk, cart=cart).first()
+        if cart_item:
             if quantity:
                 cart_item.quantity = quantity
+                cart_item.price = cart_item.product.selling_price * quantity
             if attribute_id:
                 attribute = ProductAttribute.objects.get(pk=attribute_id)
                 cart_item.attribute = attribute
             cart_item.save()
+            cart.product_total += cart_item.price 
+            cart.save()
             response_data = {
                 "StatusCode": 6000,
                 "data": {"message": "Updated item succesfully"},
@@ -858,7 +877,7 @@ def weekly_purchase(request):
 
 @api_view(["GET"])
 def order_stats(request):
-    today = datetime.now().date()
+    today = datetime.datetime.now().date()
     yesterday = today - timedelta(days=1)
     first_day_of_month = today.replace(day=1)
     last_day_of_last_month = first_day_of_month - timedelta(days=1)
@@ -1277,7 +1296,7 @@ def wallet_transaction(request):
 def orders(request):
     try:
         user = request.user
-        instances = Purchase.objects.filter(active=True, user=user).order_by(
+        instances = Purchase.objects.filter(active=True, user=user, is_deleted=False).order_by(
             "-created_at"
         )
         serializers = OrderSerializer(
@@ -1426,6 +1445,8 @@ def accounts_details(request):
     # try:
     instance = Transaction.objects.all().order_by("created_at")
     filter_value = request.GET.get("filter")
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
     if filter_value == "Credit":
         instance = instance.filter(credit=True)
     elif filter_value == "Debit":
@@ -1433,6 +1454,8 @@ def accounts_details(request):
     elif filter_value == "Withdrawal":
         # Assuming you meant to apply a different filter for "Withdrawal"
         instance = instance.filter(withdrawal=True)
+    if start_date and end_date:
+        instance = instance.filter(created_at__range=[start_date, end_date])
     paginator = Paginator(instance, 10)  # Change 10 to your desired page size
     page_number = request.GET.get("page")
     paginated_instance = paginator.get_page(page_number)
@@ -1444,6 +1467,7 @@ def accounts_details(request):
     previous_page_number = (
         paginated_instance.previous_page_number() if has_previous_page else None
     )
+    
     serialized = TransactionListSerializer(paginated_instance, many=True).data
     credited_amount = instance.filter(credit=True).aggregate(
         credited=Sum("amount")
@@ -1480,4 +1504,160 @@ def accounts_details(request):
     #         "request": request.data,
     #         "message": str(e),
     #     }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def add_referral(request):
+    try:
+        referral_code = request.data.get("referral_code")
+        if not referral_code:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Referral code is required"
+                }
+            }
+            return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+        if not UserProfile.objects.filter(refferal_code=referral_code).exists():
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Referral code not valid"
+                }
+            }
+            return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+        try:
+            cart = Cart.objects.get(user=request.user)
+            cart_items = CartItem.objects.filter(cart=cart)
+            for cart_item in cart_items:
+                cart_item.referral_code = referral_code
+                cart_item.save()
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": "Referral code added successfully"
+                }
+            }
+        except Cart.DoesNotExist:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Cart not found for the user"
+                }
+            }
+        except Exception as e:
+            response_data = {
+                "StatusCode": 6002,
+                "data": {
+                    "message": f"An error occurred: {str(e)}"
+                }
+            }
+        return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+        return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def apply_coupen(request):
+    response_data = {}  # Initialize response_data at the beginning
+    try:
+        coupon_code = request.data.get("coupon_code")
+        if not coupon_code:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Coupon code is required"
+                }
+            }
+            return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+        
+        coupen = Coupens.objects.filter(code=coupon_code).first()
+        if not coupen:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Invalid coupon code"
+                }
+            }
+            return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+        
+        if coupen.is_expired:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Coupon code is expired"
+                }
+            }
+            return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+        cart = Cart.objects.get(user=request.user)
+        cart.total_amount = cart.total_amount or Decimal('0.00')  # Ensure total_amount is not None
+
+        offer_start_price = coupen.offer_start_price or Decimal('0.00')
+        offer_end_price = coupen.offer_end_price or Decimal('0.00')
+
+        if coupen.offer and coupen.offer != 0:
+            discount_amount = (cart.total_amount * coupen.offer) / 100
+            if offer_start_price <= cart.total_amount <= offer_end_price:
+                cart.total_amount -= discount_amount
+                cart.coupon_code = coupon_code
+                cart.coupen_offer = discount_amount
+                cart.save()
+                response_data = {
+                    "StatusCode": 6000,
+                    "data": {
+                        "message": "Coupon applied successfully",
+                        "discount_amount": discount_amount,
+                        "total_amount": cart.total_amount
+                    }
+                }
+            else:
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": {
+                        "message": "Coupon code is not applicable for this order"
+                    }
+                }
+
+        elif coupen.offer_price and coupen.offer_price != 0:
+            if offer_start_price <= cart.total_amount <= offer_end_price:
+                cart.total_amount -= coupen.offer_price
+                cart.coupen_offer = coupen.offer_price
+                cart.coupon_code = coupon_code
+                cart.save()
+                response_data = {
+                    "StatusCode": 6000,
+                    "data": {
+                        "message": "Coupon applied successfully",
+                        "discount_amount": coupen.offer_price,
+                        "total_amount": cart.total_amount
+                    }
+                }
+            else:
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": {
+                        "message": "Coupon code is not applicable for this order"
+                    }
+                }
+
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)

@@ -30,4 +30,11 @@ urlpatterns = [
         r"^admin/delete-coupen/(?P<pk>.*)/$", views.deleteCoupen, name="delete_coupen"
     ),
     re_path(r"^admin/get-coupen/$", views.get_coupens, name="add_coupen"),
+    re_path(r"^admin/add-banner/$", views.add_banner, name="add_banner"),
+    re_path(r"^admin/view-banners/$", views.view_banners, name="view_banner"),
+    re_path(r"^admin/view-banners/(?P<pk>.*)/$", views.view_banner, name="view_banner"),
+    re_path(r"^view-banners/(?P<section>.*)/$", views.view_user_banner, name="view_banner"),
+    re_path(r"^admin/update-banners/(?P<pk>.*)/$", views.update_banner, name="view_banner"),
+    re_path(r"^enquiry/$", views.enquiry, name="enquiry"),
+    re_path(r"^admin/enquiry/$", views.admin_enquiry, name="admin_enquiry"),
 ]

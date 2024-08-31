@@ -256,7 +256,6 @@ class AddressSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
     customer_details = serializers.SerializerMethodField()
-    invoice_no = serializers.SerializerMethodField()
     address = serializers.SerializerMethodField()
 
     # product_details = serializers.SerializerMethodField()
@@ -271,6 +270,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "customer_details",
             "invoice_no",
             "address",
+            "invoice_no"
         )
 
 
@@ -297,8 +297,6 @@ class OrderSerializer(serializers.ModelSerializer):
         }
         return customer_details
 
-    def get_invoice_no(self, instance):
-        return "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 
 class TransactionListSerializer(serializers.ModelSerializer):
