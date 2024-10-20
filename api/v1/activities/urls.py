@@ -50,7 +50,7 @@ urlpatterns = [
     re_path(
         r"^update-all-refferal/$", views.update_all_refferal, name="update_all_refferal"
     ),
-    re_path(r"^user-orders/$", views.user_orders, name="update_all_refferal"),
+    re_path(r"^user-orders/$", views.user_orders, name="user-orders"),
     re_path(r"^admin/orders/$", views.view_oders, name="view_oders"),
     re_path(r"^admin/orders/(?P<pk>.*)/$", views.view_oder_detail, name="view_oders"),
     re_path(r"^admin/transactions/$", views.view_accounts, name="view_accounts"),
@@ -67,4 +67,8 @@ urlpatterns = [
     re_path(
         r"^admin/view-order-counts/$", views.view_order_count, name="view_order_count"
     ),
+
+    re_path(r"^admin-create-orders/$", views.admin_create_orders, name="admin-create-orders"),
+    re_path(r'^download-invoice/(?P<pk>.*)/$', views.download_invoice, name="download-invoice"),
+
 ]

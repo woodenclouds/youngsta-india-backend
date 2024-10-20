@@ -67,3 +67,9 @@ class PurchaseStatusAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Referral)
+
+
+@admin.register(Sources)
+class SourcesAdmin(admin.ModelAdmin):
+    list_display = ("id", "name")
+    ordering = ("id",)

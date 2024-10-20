@@ -152,10 +152,10 @@ class WishlistItem(BaseModel):
 
 class Cart(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    total_amount = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
-    coupen_offer = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
+    total_amount = models.PositiveBigIntegerField( blank=True, null=True)
+    coupen_offer = models.PositiveBigIntegerField( blank=True, null=True)
     coupon_code = models.CharField(max_length=155, blank=True, null=True)
-    product_total = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
+    product_total = models.PositiveBigIntegerField( blank=True, null=True)
     
     def __str__(self):
         return f"Cart for {self.user.username}"
@@ -172,7 +172,7 @@ class CartItem(BaseModel):
         "products.Product", on_delete=models.CASCADE, blank=True, null=True
     )
     quantity = models.PositiveIntegerField(default=1)
-    price = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
+    price = models.PositiveBigIntegerField(blank=True, null=True)
     attribute = models.ForeignKey(
         "products.ProductAttribute", on_delete=models.CASCADE, blank=True, null=True
     )
@@ -180,6 +180,18 @@ class CartItem(BaseModel):
     coupon_code = models.CharField(max_length=155, blank=True, null=True)
     def __str__(self):
         return f"{self.product.name} in {self.cart.user.username}'s cart"
+
+class Sources(BaseModel):
+    name = models.CharField(max_length=255, blank=True, null=True)
+ 
+    def __str__(self):
+        return f"{self.name}-{self.id}"
+
+    class Meta:
+        db_table = "activities_sources"
+        managed = True
+        verbose_name = "Source"
+        verbose_name_plural = "Sources"
 
 
 class Purchase(BaseModel):
@@ -191,12 +203,15 @@ class Purchase(BaseModel):
         blank=True,
         null=True,
     )
-    total_amount = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
+    total_amount = models.PositiveBigIntegerField(blank=True, null=True)
     status = models.CharField(choices=LOG_STATUS, blank=True, null=True)
     order_status = models.CharField(max_length=255, blank=True, null=True)
     refferal = models.CharField(max_length=10, blank=True, null=True)
     active = models.BooleanField(default=True, blank=True, null=True)
     invoice_no = models.CharField(max_length=10, blank=True, null=True)
+    method = models.CharField(choices=PAYMENT_METHOD, blank=True, null=True)
+    source = models.ForeignKey(Sources, on_delete=models.CASCADE)
+  
 
     def __str__(self):
         return f"Purchase for {self.user.username}"
@@ -222,7 +237,7 @@ class PurchaseItems(BaseModel):
     attribute = models.ForeignKey(
         "products.ProductAttribute", on_delete=models.CASCADE, blank=True, null=True
     )
-    price = models.PositiveBigIntegerField(max_length=100, blank=True, null=True)
+    price = models.PositiveBigIntegerField(blank=True, null=True)
     is_returned = models.BooleanField(default=False, blank=True, null=True)
     is_cancelled = models.BooleanField(default=False, blank=True, null=True)
 

@@ -289,7 +289,7 @@ class ProductItem(BaseModel):
     )
     color = models.CharField(max_length=8, blank=True, null=True)
     stock = models.PositiveIntegerField(default=0, blank=True, null=True)
-    size = models.IntegerField(max_length=30, blank=False)
+    size = models.IntegerField( blank=False)
     quantity = models.PositiveIntegerField(default=1, blank=True, null=True)
     published = models.BooleanField(default=False)
 
@@ -348,7 +348,7 @@ class VarientAttribute(BaseModel):
     attribute = models.ForeignKey(
         Attribute, on_delete=models.CASCADE, blank=True, null=True
     )
-    quantity = models.IntegerField(max_length=155, blank=True, null=True)
+    quantity = models.IntegerField(blank=True, null=True)
 
     class Meta:
         db_table = "product_varient_attribute"

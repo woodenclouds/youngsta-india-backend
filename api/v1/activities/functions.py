@@ -3,7 +3,8 @@ import json
 from django.conf import settings
 from accounts.models import *
 from activities.models import *
-
+from payments.models import *
+from accounts.models import Address
 
 
 def generateAccessShiprocket():
@@ -158,3 +159,75 @@ def getServiceAvailability(cart, pin_code):
         return response_data
     else:
         raise Exception(f"Failed to get service availability: {response_data,token}")
+
+
+def get_invoice_data(pk):
+    
+    order = Purchase.objects.filter(id=pk, is_deleted=False).first()   
+    if not order:
+        return None  
+    current_date = timezone.now().strftime('%Y%m%d')
+    
+    # --- Product Details ---
+
+    order_items = PurchaseItems.objects.filter(purchase__id=order.id)
+    product_details = []
+    grand_total = 0
+    total_products = 0
+
+    for item in order_items:
+        product = Product.objects.filter(id=item.product.id).first()
+        if product:
+            total_price = item.quantity * product.selling_price
+            product_details.append({
+                'product_name': product.name,
+                'product_description': product.description,
+                'product_code':product.product_code,
+                'quantity': item.quantity,
+                'price': product.price,
+                # 'tax': product.tax,
+                'gst': product.gst_price,
+                'total_price': total_price,           
+            })
+            grand_total += total_price
+            total_products += item.quantity 
+
+        # --- Order Details ---
+    invoice = Invoice.objects.filter(purchase__id=order.id).first()
+
+    order_details = {
+        'order_id': str(order.id),
+        'ordered_date': order.created_at.strftime("%d %b %Y"),
+        'invoice_number': order.invoice_no,  
+        'invoice_date': invoice.issued_at.strftime("%d %b %Y"),
+        'total_products': total_products,
+        'grand_total': f"{grand_total:.2f}",
+    }
+
+    # --- Billing Details ---
+    billing_details = []
+
+    if ( billing_address := Address.objects.filter(id=order.address.id, is_deleted=False)).exists():
+        billing_address = billing_address.first()
+
+        billing_details = {
+            'billing_name': billing_address.first_name,
+            'billing_address': billing_address.address,
+            'billing_street': billing_address.street,
+            'billing_city': billing_address.city,
+            'billing_pincode': billing_address.post_code,
+            'billing_state': billing_address.state,
+            'billing_country': billing_address.country,
+            'billing_phone': billing_address.phone,
+        }
+  
+    # Combine all details into a dictionary
+    invoice_data = {
+        'order_details': order_details,
+        'billing_details': billing_details,
+        'product_details': product_details,
+    }
+    
+    return invoice_data
+
+    

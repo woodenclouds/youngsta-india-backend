@@ -4,6 +4,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from django.db.models.functions import TruncDay, TruncMonth
 from django.shortcuts import get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
+from django.template.loader import render_to_string
 
 from django.db import transaction
 import traceback
@@ -12,10 +14,12 @@ from api.v1.main.decorater import *
 from api.v1.main.functions import *
 from products.models import *
 from payments.models import *
+from main.encryptions import *
 from decimal import Decimal
 from api.v1.payments.views import *
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
+from django.contrib.auth import authenticate
 from django.db.models import Sum
 from django.db.models.functions import TruncWeek
 from accounts.models import *
@@ -24,6 +28,9 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Subquery, OuterRef
 from .functions import *
 from marketing.models import *
+
+from io import BytesIO
+from xhtml2pdf import pisa
 
 
 
@@ -1232,7 +1239,6 @@ def view_refferal(request):
         }
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
-
 @api_view(["GET"])
 def user_orders(request):
     try:
@@ -1246,6 +1252,142 @@ def user_orders(request):
             "message": str(e),
         }
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+@api_view(["POST"])
+def admin_create_orders(request):
+    try:
+        serialized_data = OrderSerializer(data=request.data)
+        if serialized_data.is_valid():
+            invoice_number = request.data["invoice_number"]
+            customer_name = request.data["customer_name"]
+            address = request.data["address"]
+            post_code = request.data["post_code"]
+            street = request.data["street"]
+            city = request.data["city"]
+            state = request.data["state"]
+            country = request.data["country"]
+            email = request.data["email"]
+            phone = request.data["phone"]
+            password = request.data["password"]
+            method = request.data["method"]
+            source = request.data["source"]
+            product_data = request.data.get('items', [])
+
+            if User.objects.filter(username=email).exists():
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": {"message": "Email already exists."}
+                }
+                return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
+
+            source_obj, created = Sources.objects.get_or_create(name=source)
+
+            if email and password:
+                email = request.data["email"]
+                password = request.data["password"]
+                user = User.objects.create_user(username=email, password=password)
+                enc_password = encrypt(password)
+
+                profile = UserProfile.objects.create(
+                    user=user,
+                    first_name=customer_name,
+                    email=email,
+                    password=enc_password,
+                    phone_number = phone,
+                    user_type = "manual",
+                )
+            
+                address = Address.objects.create(user=profile, 
+                    first_name=customer_name,
+                    address = address,
+                    post_code=post_code,
+                    street=street,
+                    city=city,
+                    state=state,
+                    country=country,
+                    phone = phone,
+                    )
+
+            total_amount = 0
+            for item in product_data:
+              total_amount += item.get('total_price', 0)
+
+            if Invoice.objects.filter(invoice_no=invoice_number).exists():
+                response_data = {
+                    "StatusCode": 6002,
+                    "data": {"message": "Invoice number already exists."}                  }
+                return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
+
+            purchase = Purchase.objects.create(
+                    user=user,
+                    total_amount = total_amount,
+                    invoice_no = invoice_number,
+                    status = "pending",
+                    address = address,
+                    method =method,
+                    source = source_obj,
+                )
+
+            for item_data in product_data:
+                product = Product.objects.get(id=item_data['product_name'])
+
+                PurchaseItems.objects.create(
+                    purchase=purchase,
+                    product = product, 
+                    # attribute = item_data.get('product_attribute'),
+                    quantity = item_data.get('quantity'),
+                    price = item_data.get('unit_price'),                                  
+                )
+            current_time = datetime.datetime.now().date()
+            invoice = Invoice.objects.create(
+                    invoice_no = invoice_number,
+                    issued_at = current_time,
+                    customer_name = customer_name,
+                    total_amount = total_amount,
+                    purchase = purchase,
+                )
+           
+            response_data = {
+                "StatusCode": 6000,
+                "data": {"message": "Order added successfully"},
+            }
+        else:
+            response_data = {"StatusCode": 6001, "data": serialized_data.errors}
+
+    except Exception as e:
+        transaction.rollback()
+        errType = e.__class__.__name__
+        errors = {errType: traceback.format_exc()}
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors,
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@csrf_exempt
+def download_invoice(request, pk):
+
+    invoice_data = get_invoice_data(pk)
+
+    if invoice_data is None:
+        return HttpResponse('Order not found', status=404)
+
+    html_string = render_to_string('activities/invoice/invoice.html', {'order': invoice_data})
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename=invoice_{invoice_data["order_details"]["order_id"]}.pdf'
+
+    pdf = BytesIO()
+    pisa_status = pisa.CreatePDF(html_string, dest=pdf)
+
+    if pisa_status.err:
+        return HttpResponse('Error generating PDF', status=500)
+ 
+    response.write(pdf.getvalue())
+    return response
 
 
 @api_view(["GET"])

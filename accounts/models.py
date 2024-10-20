@@ -9,6 +9,11 @@ STAFF_TYPE = [
     ('staff','staff'),
 ]
 
+USER_TYPE_CHOICES = [
+    ('online', 'Signed Up Online'),
+    ('manual', 'Added Manually'),  # Changed to reflect manual addition
+]
+
 
 class AdminProfile(BaseModel):
     name = models.CharField(max_length=155, blank=True, null=True)
@@ -53,6 +58,8 @@ class UserProfile(BaseModel):
     is_verified = models.BooleanField(default=False)
     refferal_code = models.CharField(max_length=10,blank=True, null=True)
     device_token = models.TextField(blank=True)
+    user_type = models.CharField(choices=USER_TYPE_CHOICES, default='online')
+   
 
     def save(self, *args, **kwargs):
         is_new = not self.pk  # Check if the instance is new
