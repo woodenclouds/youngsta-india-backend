@@ -1378,7 +1378,7 @@ def download_invoice(request, pk):
 
     html_string = render_to_string('activities/invoice/invoice.html', {'order': invoice_data})
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename=invoice_{invoice_data["order_details"]["order_id"]}.pdf'
+    response['Content-Disposition'] = f'attachment; filename=invoice_{invoice_data["order_details"]["invoice_number"]}.pdf'
 
     pdf = BytesIO()
     pisa_status = pisa.CreatePDF(html_string, dest=pdf)

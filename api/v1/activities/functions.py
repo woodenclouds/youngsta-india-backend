@@ -194,7 +194,7 @@ def get_invoice_data(pk):
 
         # --- Order Details ---
     invoice = Invoice.objects.filter(purchase__id=order.id).first()
-
+    shipping_charge = getattr(order, 'shipping_charge', 0)      
     order_details = {
         'order_id': str(order.id),
         'ordered_date': order.created_at.strftime("%d %b %Y"),
@@ -202,8 +202,8 @@ def get_invoice_data(pk):
         'invoice_date': invoice.issued_at.strftime("%d %b %Y"),
         'total_products': total_products,
         'grand_total': f"{grand_total:.2f}",
+        'shipping_charge': f"{shipping_charge:.2f}" if shipping_charge else "0"
     }
-
     # --- Billing Details ---
     billing_details = []
 

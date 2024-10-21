@@ -182,8 +182,8 @@
             <tbody>
                 {% for item in order.product_details %}
                 <tr>
-                    <td style="text-align: left;">{{ item.product_name }} <br> {{ item.product_code }}</td>
-                    <td style="text-align: left;">{{ item.product_description }}</td>
+                    <td style="text-align: left;"> {{ item.product_description }}<br> {{ item.product_code }}</td>
+                    <td style="text-align: left;">{{ item.product_name }}</td>
                     <td style="text-align: center;">{{ item.quantity }}</td>
                     <td style="text-align: right;">{{ item.price }}</td>
                     <td style="text-align: right;">{{ item.total_price }}</td>
@@ -203,6 +203,26 @@
             <thead>
                 <tr class="charges" style="text-align: right;">
                     <td class="table-header" style="text-align: left;">Shipping Charges</td>
+                    <td class="table-header" style="text-align: center;">{{ order.order_details.shipping_charge }}</td>
+                    <td class="table-header" style="text-align: right;">{{ order.order_details.shipping_charge }}</td>
+                </tr>
+            </thead>
+        </table>
+        <div class="totals">
+            <table>
+                <tr>
+                    <td> </td>
+                    <td style="border-top: 1px solid #000;"> </td>
+                    <td style="border-top: 1px solid #000;"> <!-- Right-aligned border column -->
+                        <!-- Optional text or element can be added here if needed -->
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <table>
+            <thead>
+                <tr class="charges" style="text-align: right;">
+                    <td class="table-header" style="text-align: left;">Total</td>
                     <td class="table-header" style="text-align: center;">{{ order.order_details.total_products }}</td>
                     <td class="table-header" style="text-align: right;">{{ order.order_details.grand_total }}</td>
                 </tr>
