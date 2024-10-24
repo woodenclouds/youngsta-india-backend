@@ -82,11 +82,12 @@ def signup(request):
                     )
                     # Assuming address data is nested within the UserProfileSerializer
                     # Retrieve and process address data
-                    address_data = request.data.get("address", [])
-                    if address_data:
-                        for address_item in address_data:
-                            Address.objects.create(user_profile=profile, **address_item)
-
+                    
+                    # address_data = request.data.get("address", [])
+                    # if address_data:
+                    #     for address_item in address_data:
+                    #         Address.objects.create(user_profile=profile, **address_item)
+                           
                     transaction.commit()
                     response_data = {
                         "StatusCode": 6000,

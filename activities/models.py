@@ -210,7 +210,7 @@ class Purchase(BaseModel):
     active = models.BooleanField(default=True, blank=True, null=True)
     invoice_no = models.CharField(max_length=10, blank=True, null=True)
     method = models.CharField(choices=PAYMENT_METHOD, blank=True, null=True)
-    source = models.ForeignKey(Sources, on_delete=models.CASCADE)
+    source = models.ForeignKey(Sources, on_delete=models.CASCADE, blank=True, null=True)
   
 
     def __str__(self):

@@ -5,6 +5,7 @@ from accounts.models import *
 from activities.models import *
 from payments.models import *
 from accounts.models import Address
+from decimal import Decimal
 
 
 def generateAccessShiprocket():
@@ -174,23 +175,33 @@ def get_invoice_data(pk):
     product_details = []
     grand_total = 0
     total_products = 0
+    total_tax = 0
+    total_price_excluding_tax = 0
 
     for item in order_items:
         product = Product.objects.filter(id=item.product.id).first()
         if product:
             total_price = item.quantity * product.selling_price
+            tax =  Decimal('0.05') * total_price
+            cgst =  Decimal('0.05') * total_price/2
+            sgst =  Decimal('0.05') * total_price/2
+            price_excluding_tax = product.price-tax/item.quantity
             product_details.append({
                 'product_name': product.name,
                 'product_description': product.description,
                 'product_code':product.product_code,
                 'quantity': item.quantity,
-                'price': product.price,
-                # 'tax': product.tax,
+                'price_excluding_tax': f"{price_excluding_tax:.2f}",
+                'CGST': f"{cgst:.2f}",
+                'SGST': f"{sgst:.2f}",
                 'gst': product.gst_price,
                 'total_price': total_price,           
             })
+            total_price_excluding_tax += price_excluding_tax * item.quantity
             grand_total += total_price
             total_products += item.quantity 
+            total_tax += tax
+
 
         # --- Order Details ---
     invoice = Invoice.objects.filter(purchase__id=order.id).first()
@@ -201,7 +212,10 @@ def get_invoice_data(pk):
         'invoice_number': order.invoice_no,  
         'invoice_date': invoice.issued_at.strftime("%d %b %Y"),
         'total_products': total_products,
+        'total_cgst': f"{total_tax/2:.2f}",
+        'total_sgst': f"{total_tax/2:.2f}",
         'grand_total': f"{grand_total:.2f}",
+        'total_price_excluding_tax':f"{total_price_excluding_tax:.2f}",
         'shipping_charge': f"{shipping_charge:.2f}" if shipping_charge else "0"
     }
     # --- Billing Details ---

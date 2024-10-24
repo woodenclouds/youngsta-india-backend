@@ -1377,6 +1377,7 @@ def download_invoice(request, pk):
         return HttpResponse('Order not found', status=404)
 
     html_string = render_to_string('activities/invoice/invoice.html', {'order': invoice_data})
+    
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename=invoice_{invoice_data["order_details"]["invoice_number"]}.pdf'
 

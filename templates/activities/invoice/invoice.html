@@ -111,25 +111,33 @@
     </style>
 </head>
 <body>
+    <div class="totals">
+        <table>
+            <tr>
+                <td> </td>
+                <td></td> <!-- Empty column for spacing -->
+                <td style="width: 30%; text-align: right;">Tax Invoice {{ invoice.tax_invoice_number }} <!-- Right-aligned border column -->
+                    <!-- Optional text or element can be added here if needed -->
+                </td>
+            </tr>
+        </table>
+    </div>
     
-    <div class="invoice-container">
-        <div class="invoice-header">
-            <h3>Contact Us:</h3>
-            <p>
-            </p>
-        </div>
-        <div class="totals">
-            <table>
-                <tr>
-                    <td> </td>
-                    <td></td> <!-- Empty column for spacing -->
-                    <td style="width: 30%; text-align: right;">Tax Invoice {{ invoice.tax_invoice_number }} <!-- Right-aligned border column -->
-                        <!-- Optional text or element can be added here if needed -->
-                    </td>
-                </tr>
-            </table>
-        </div>
-
+    <div class="invoice-container">      
+        <table style="width: 100%; border: none; border-collapse: collapse;">
+            <tr>
+                <td style="width: 120px; padding: 0; margin: 0;">
+                    <img src="../activities/static/images/youngsta_logo.png" alt="Company Logo" style="width: 100px; height: auto;">
+                </td>
+                <td style="text-align: left; padding: 0; margin: 0;">
+                    <!-- <h4 style="margin: 0;">GSTIN: 32BFPPV1234N1Z0</h4> -->
+                    <h4 style="margin: 0;">YOUNGSTA</h4>
+                    <h4 style="margin: 0;">Kerala, India</h4>
+                    <!-- <h4 style="margin: 0;">Contact Us: +1 254 568-5479 || youngsta@gmail.com</h4> -->
+                </td>
+            </tr>
+        </table>
+        
 
         <hr>
 
@@ -169,10 +177,12 @@
         <table>
             <thead>
                 <tr class="product-detail-title">
-                    <th class="table-header">Product</th>
-                    <th class="table-header">Title</th>
+                    <th class="table-header" style="text-align: left;">Product</th>
+                    <th class="table-header"style="text-align: left;">Title</th>
                     <th class="table-header" style="text-align: center;">Qnty</th>
                     <th class="table-header" style="text-align: right;">Price</th>
+                    <th class="table-header" style="text-align: right;">CGST</th>
+                    <th class="table-header" style="text-align: right;">SGST</th>
                     <th class="table-header" style="text-align: right;">Total</th>
                 </tr>
             </thead>
@@ -185,12 +195,14 @@
                     <td style="text-align: left;"> {{ item.product_description }}<br> {{ item.product_code }}</td>
                     <td style="text-align: left;">{{ item.product_name }}</td>
                     <td style="text-align: center;">{{ item.quantity }}</td>
-                    <td style="text-align: right;">{{ item.price }}</td>
+                    <td style="text-align: right;">{{ item.price_excluding_tax }}</td>
+                    <td style="text-align: right;">{{ item.CGST }}</td>
+                    <td style="text-align: right;">{{ item.SGST }}</td>
                     <td style="text-align: right;">{{ item.total_price }}</td>
                 </tr>
                 {% if not forloop.last %} 
                 <tr>
-                    <td colspan="5" style="margin: 0; padding: 0; border-top: 1px solid rgb(191, 191, 191);"></td>
+                    <td colspan="7" style="margin: 0; padding: 0; border-top: 1px solid rgb(191, 191, 191);"></td>
                 </tr>
                 {% endif %}
                 {% endfor %}
@@ -203,7 +215,11 @@
             <thead>
                 <tr class="charges" style="text-align: right;">
                     <td class="table-header" style="text-align: left;">Shipping Charges</td>
-                    <td class="table-header" style="text-align: center;">{{ order.order_details.shipping_charge }}</td>
+                    <td style="text-align: left;color: white;">.</td>
+                    <td style="text-align: center;color: white;">.</td>
+                    <td class="table-header" style="text-align: right;">{{ order.order_details.shipping_charge }}</td>
+                    <td style="text-align: right;color: white;">.</td>
+                    <td style="text-align: right; color: white;">.</td>
                     <td class="table-header" style="text-align: right;">{{ order.order_details.shipping_charge }}</td>
                 </tr>
             </thead>
@@ -223,8 +239,12 @@
             <thead>
                 <tr class="charges" style="text-align: right;">
                     <td class="table-header" style="text-align: left;">Total</td>
-                    <td class="table-header" style="text-align: center;">{{ order.order_details.total_products }}</td>
-                    <td class="table-header" style="text-align: right;">{{ order.order_details.grand_total }}</td>
+                    <td style="text-align: left; color: white;">.</td>
+                    <td  class="table-header" style="text-align: center;">{{ order.order_details.total_products }}</td>                 
+                    <td class="table-header" style="text-align: right;">{{ order.order_details.total_price_excluding_tax }}</td>
+                    <td class="table-header" style="text-align: right;">{{ order.order_details.total_cgst }}</td>
+                    <td  class="table-header" style="text-align: right;">{{ order.order_details.total_sgst }}</td>
+                    <td  class="table-header" style="text-align: right;">{{ order.order_details.grand_total }}</td>
                 </tr>
             </thead>
         </table>

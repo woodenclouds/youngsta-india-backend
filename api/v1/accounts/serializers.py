@@ -68,6 +68,7 @@ class AddressSerializer(serializers.ModelSerializer):
             'phone',
             'email',
             'city',
+            'state',
             'post_code',
         )
 
