@@ -322,15 +322,18 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
         fields = ("id", "product_details", "quantity", "attribute", "price","is_cancelled", "is_returned")
 
     def get_product_details(self, instance):
-        thumbnail = ProductImages.objects.filter(
-            product=instance.product, thumbnail=True
-        ).latest("created_at")
-        product_detail = {
-            "name": instance.product.name,
-            "selling_price": instance.product.selling_price,
-            "thumbnail": thumbnail.image,
-        }
-        return product_detail
+
+        if ProductImages.objects.filter(product=instance.product, thumbnail=True).exists():
+            thumbnail = ProductImages.objects.filter(
+                product=instance.product, thumbnail=True
+            ).latest("created_at")
+            product_detail = {
+                "name": instance.product.name,
+                "selling_price": instance.product.selling_price,
+                "thumbnail": thumbnail.image,
+            }
+            return product_detail
+        return None
 
 class ReturnSerializer(serializers.ModelSerializer):
     class Meta:
@@ -381,3 +384,9 @@ class ReturnSerializer(serializers.ModelSerializer):
 
     def get_invoice_no(self, instance):
         return "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    
+
+class SourcesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Sources
+        fields = ["id","name"]

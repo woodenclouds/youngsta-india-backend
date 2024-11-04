@@ -207,10 +207,10 @@ def get_invoice_data(pk):
     invoice = Invoice.objects.filter(purchase__id=order.id).first()
     shipping_charge = getattr(order, 'shipping_charge', 0)      
     order_details = {
-        'order_id': str(order.id),
+        'order_id': str(order.invoice_no),
         'ordered_date': order.created_at.strftime("%d %b %Y"),
         'invoice_number': order.invoice_no,  
-        'invoice_date': invoice.issued_at.strftime("%d %b %Y"),
+        'invoice_date': invoice.issued_at.strftime("%d %b %Y") if invoice and invoice.issued_at else "----",
         'total_products': total_products,
         'total_cgst': f"{total_tax/2:.2f}",
         'total_sgst': f"{total_tax/2:.2f}",
@@ -225,14 +225,14 @@ def get_invoice_data(pk):
         billing_address = billing_address.first()
 
         billing_details = {
-            'billing_name': billing_address.first_name,
-            'billing_address': billing_address.address,
-            'billing_street': billing_address.street,
-            'billing_city': billing_address.city,
-            'billing_pincode': billing_address.post_code,
-            'billing_state': billing_address.state,
-            'billing_country': billing_address.country,
-            'billing_phone': billing_address.phone,
+            'billing_name': billing_address.first_name if billing_address.first_name else "",
+            'billing_address': billing_address.address if billing_address.address else "",
+            'billing_street': billing_address.street if billing_address.street else "",
+            'billing_city': billing_address.city if billing_address.city else "",
+            'billing_pincode': billing_address.post_code if billing_address.post_code else "",
+            'billing_state': billing_address.state if billing_address.state else "",
+            'billing_country': billing_address.country if billing_address.country else "",
+            'billing_phone': billing_address.phone if billing_address.phone else "",
         }
   
     # Combine all details into a dictionary

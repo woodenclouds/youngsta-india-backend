@@ -68,6 +68,7 @@ urlpatterns = [
         r"^admin/view-order-counts/$", views.view_order_count, name="view_order_count"
     ),
 
+    re_path(r"^sources-list/$", views.order_source_list, name="order-sources-list"),
     re_path(r"^admin-create-orders/$", views.admin_create_orders, name="admin-create-orders"),
     re_path(r'^download-invoice/(?P<pk>.*)/$', views.download_invoice, name="download-invoice"),
 

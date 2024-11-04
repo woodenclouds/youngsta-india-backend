@@ -6,6 +6,8 @@ from django.db.models.functions import TruncDay, TruncMonth
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
+from django.templatetags.static import static
+
 
 from django.db import transaction
 import traceback
@@ -1258,20 +1260,21 @@ def admin_create_orders(request):
     try:
         serialized_data = OrderSerializer(data=request.data)
         if serialized_data.is_valid():
-            invoice_number = request.data["invoice_number"]
-            customer_name = request.data["customer_name"]
-            address = request.data["address"]
-            post_code = request.data["post_code"]
-            street = request.data["street"]
-            city = request.data["city"]
-            state = request.data["state"]
-            country = request.data["country"]
+            invoice_number = request.data["invoiceNumber"]
+            customer_name = request.data["customerName"]
+            address = request.data["deliveryAddress"]
+            billing_address = request.data["billingAddress"]
+            # post_code = request.data["post_code"]
+            # street = request.data["street"]
+            # city = request.data["city"]
+            # state = request.data["state"]
+            # country = request.data["country"]
             email = request.data["email"]
             phone = request.data["phone"]
-            password = request.data["password"]
+            # password = request.data["password"]
             method = request.data["method"]
             source = request.data["source"]
-            product_data = request.data.get('items', [])
+            product_data = request.data.get('products', [])
 
             if User.objects.filter(username=email).exists():
                 response_data = {
@@ -1280,13 +1283,13 @@ def admin_create_orders(request):
                 }
                 return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
 
-            source_obj, created = Sources.objects.get_or_create(name=source)
+            source_obj= Sources.objects.get(id=source)
 
-            if email and password:
-                email = request.data["email"]
-                password = request.data["password"]
-                user = User.objects.create_user(username=email, password=password)
-                enc_password = encrypt(password)
+            if email:
+                # email = request.data["email"]
+                # password = request.data["password"]
+                user = User.objects.create_user(username=email, password="testpassword")
+                enc_password = encrypt(email)
 
                 profile = UserProfile.objects.create(
                     user=user,
@@ -1300,17 +1303,17 @@ def admin_create_orders(request):
                 address = Address.objects.create(user=profile, 
                     first_name=customer_name,
                     address = address,
-                    post_code=post_code,
-                    street=street,
-                    city=city,
-                    state=state,
-                    country=country,
+                    # post_code=post_code,
+                    # street=street,
+                    # city=city,
+                    # state=state,
+                    # country=country,
                     phone = phone,
                     )
 
             total_amount = 0
             for item in product_data:
-              total_amount += item.get('total_price', 0)
+              total_amount += int(item.get('totalPrice', 0) or 0)
 
             if Invoice.objects.filter(invoice_no=invoice_number).exists():
                 response_data = {
@@ -1329,14 +1332,14 @@ def admin_create_orders(request):
                 )
 
             for item_data in product_data:
-                product = Product.objects.get(id=item_data['product_name'])
+                product = Product.objects.get(id=item_data.get('productName'))
 
                 PurchaseItems.objects.create(
                     purchase=purchase,
                     product = product, 
                     # attribute = item_data.get('product_attribute'),
                     quantity = item_data.get('quantity'),
-                    price = item_data.get('unit_price'),                                  
+                    price = item_data.get('unitPrice'),                                  
                 )
             current_time = datetime.datetime.now().date()
             invoice = Invoice.objects.create(
@@ -1368,15 +1371,43 @@ def admin_create_orders(request):
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
+@api_view(["GET"])
+def order_source_list(request):
+    try:
+        if(sources:=Sources.objects.filter(is_deleted=False)).exists():
+            serialized_data = SourcesSerializer(sources,many=True)
+            response_data = {
+                "StatusCode": 6000, 
+                "data":serialized_data.data 
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Source not found"
+                },
+            }
+    except Exception as e:
+        transaction.rollback()
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
 @csrf_exempt
 def download_invoice(request, pk):
 
     invoice_data = get_invoice_data(pk)
+    logo_url = request.build_absolute_uri(static('/images/youngsta_logo.png'))
 
     if invoice_data is None:
         return HttpResponse('Order not found', status=404)
 
-    html_string = render_to_string('activities/invoice/invoice.html', {'order': invoice_data})
+    html_string = render_to_string('activities/invoice/invoice.html', {'order': invoice_data,'logo_url':logo_url})
     
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename=invoice_{invoice_data["order_details"]["invoice_number"]}.pdf'

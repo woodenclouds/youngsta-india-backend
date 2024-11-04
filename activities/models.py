@@ -204,12 +204,12 @@ class Purchase(BaseModel):
         null=True,
     )
     total_amount = models.PositiveBigIntegerField(blank=True, null=True)
-    status = models.CharField(choices=LOG_STATUS, blank=True, null=True)
+    status = models.CharField(choices=LOG_STATUS, blank=True, null=True,max_length=255)
     order_status = models.CharField(max_length=255, blank=True, null=True)
     refferal = models.CharField(max_length=10, blank=True, null=True)
     active = models.BooleanField(default=True, blank=True, null=True)
     invoice_no = models.CharField(max_length=10, blank=True, null=True)
-    method = models.CharField(choices=PAYMENT_METHOD, blank=True, null=True)
+    method = models.CharField(choices=PAYMENT_METHOD, blank=True, null=True,max_length=255)
     source = models.ForeignKey(Sources, on_delete=models.CASCADE, blank=True, null=True)
   
 
