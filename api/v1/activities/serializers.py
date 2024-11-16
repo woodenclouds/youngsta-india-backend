@@ -8,6 +8,7 @@ from payments.models import *
 from django.core.exceptions import ObjectDoesNotExist
 from accounts.models import *
 
+import ast
 import random
 import string
 
@@ -316,6 +317,7 @@ class TransactionListSerializer(serializers.ModelSerializer):
 
 class PurchaseItemSerializer(serializers.ModelSerializer):
     product_details = serializers.SerializerMethodField()
+    # order_data = serializers.SerializerMethodField()
 
     class Meta:
         model = PurchaseItems
@@ -334,6 +336,17 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
             }
             return product_detail
         return None
+
+    # def get_order_data(self,instance):
+    #     try:
+    #         show_purchase = self.context.get("show_purchase")
+    #         show_purchase = ast.literal_eval(show_purchase) if show_purchase in ["True","False"] else None
+
+    #         if show_purchase:
+    #             return OrderSerializer(instance.purchase).data
+    #         return None
+    #     except Exception as e:
+    #         return str(e)
 
 class ReturnSerializer(serializers.ModelSerializer):
     class Meta:

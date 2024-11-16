@@ -1339,7 +1339,7 @@ def admin_create_orders(request):
                     product = product, 
                     # attribute = item_data.get('product_attribute'),
                     quantity = item_data.get('quantity'),
-                    price = item_data.get('unitPrice'),                                  
+                    # price = item_data.get('unitPrice'),                                  
                 )
             current_time = datetime.datetime.now().date()
             invoice = Invoice.objects.create(
@@ -1493,8 +1493,20 @@ def orders_details(request,pk):
         user = request.user
         if Purchase.objects.filter(pk=pk).exists():
             purchase = Purchase.objects.get(pk=pk)
-            instances = PurchaseItems.objects.filter(purchase)
-            serializers = OrderDetailSerializer(instances,many=True)
+            instances = PurchaseItems.objects.filter(purchase=purchase)
+            # serializers = OrderDetailSerializer(instances,many=True)
+            serializers = PurchaseItemSerializer(instances,many=True)
+            purchase_searializer = OrderSerializer(purchase,context={"request":request})
+
+            response_data = {
+                "StatusCode":6000,
+                "data":{
+                    "data":serializers.data,
+                    "purchase_data":purchase_searializer.data,
+                    "title":"Success",
+                    "message":"Successfully fetched order details"
+                }
+            }
         else:
             response_data ={
                 "StatusCode":6001,
