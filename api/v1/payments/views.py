@@ -235,7 +235,7 @@ def handle_response(request):
                 return redirect(url)
         else:
             url = "https://youngsta.in/my-account/orders?action=payment_failed"
-            redirect(url)
+            return redirect(url)
     else:
         url = "https://youngsta.in/my-account/orders?action=payment_failed"
-        redirect(url)
+        return redirect(url)

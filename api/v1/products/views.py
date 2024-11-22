@@ -1411,13 +1411,19 @@ def viewProduct(request):
                         query = query.filter(sub_category=subcategory)
                     else:
                         query = get_sub_categories([subcategory])
-                else:
-                    query = Product.objects.none()
+                # else:
+                #     query = Product.objects.none()
         
         if isinstance(query, QuerySet):
             query = query.order_by("name")
         else:
             query.sort(key=lambda x: x.name)
+
+        # if all(isinstance(item, Product) for item in query):
+        #     query = query.distinct()
+
+        query = list(set(query))
+
         paginator = Paginator(query, 10)
         page = request.GET.get("page")
 

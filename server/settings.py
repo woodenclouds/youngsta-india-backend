@@ -144,10 +144,13 @@ CASHFREE_SECRET = "TEST13e388b7717db010f9e5e864679da34fea830bb3"
 CASH_FREE_END_POINT = "https://sandbox.cashfree.com/pg"
 CASH_FREE_X_API_VERSION = "https://api.cashfree.com/pg"
 
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-RAZORPAY_KEY_ID = "rzp_test_katoK4CLT1zn9N"
-RAZORPAY_KEY_SECRET = "pK0H9yzr9qC8WuD3DWMsjfb1"
+# RAZORPAY_KEY_ID = "rzp_test_katoK4CLT1zn9N"
+# RAZORPAY_KEY_SECRET = "pK0H9yzr9qC8WuD3DWMsjfb1"
+RAZORPAY_KEY_ID = "rzp_test_k401MSSoRFYoxD"
+RAZORPAY_KEY_SECRET = "DSypqxiBvxfaSTO3dFavcEpM"
 
 SHIPROCKET_EMAIL = "youngstatech@gmail.com"
 SHIPROCKET_PASSWORD = "QduVuBKQ9YNy*Wy"
