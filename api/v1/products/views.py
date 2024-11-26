@@ -907,11 +907,15 @@ def addSubcategory(request, data=None):
         elif parent_id:
             parent = SubCategory.objects.get(pk=parent_id)
 
+        if "image" not in request.data :
+            errors.append("Image is required.")
+            
         if errors:
             response_data = {"StatusCode": 6001, "data": {"message": ", ".join(errors)}}
         else:
             name = request.data["name"]
             description = request.data["description"]
+            image = request.data["image"]
             category = Category.objects.get(pk=category_id)
 
             highest_position = SubCategory.objects.aggregate(Max("position"))[
@@ -936,6 +940,7 @@ def addSubcategory(request, data=None):
                 sub_category = SubCategory.objects.create(
                     name=name,
                     description=description,
+                    image=image,
                     category=category,
                     parent=parent,
                     position=position,
@@ -2521,6 +2526,15 @@ def edit_attribute(request):
     attribute.save()
     attr_desc = AttributeDescription.objects.filter(attribute_type=attribute).delete()
     for value in attribute_values:
+        if not value.get("value") or value["value"].strip() == "":
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "One or more attribute descriptions have an empty value."
+                },
+            }
+            return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
+       
         AttributeDescription.objects.create(
             attribute_type=attribute, value=value["value"]
         )

@@ -59,6 +59,7 @@ class UserProfile(BaseModel):
     refferal_code = models.CharField(max_length=10,blank=True, null=True)
     device_token = models.TextField(blank=True)
     user_type = models.CharField(choices=USER_TYPE_CHOICES, default='online',max_length=255)
+ 
    
 
     def save(self, *args, **kwargs):

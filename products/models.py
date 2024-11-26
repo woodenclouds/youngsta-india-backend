@@ -57,6 +57,7 @@ class SubCategory(SlugModel):
     )
     name = models.CharField(max_length=150, blank=True, null=True)
     description = models.TextField()
+    image = models.TextField(null=True, blank=True) 
     published = models.BooleanField(default=False)
     order = models.IntegerField(default=0, blank=True, null=True)
     position = models.IntegerField(default=0)
