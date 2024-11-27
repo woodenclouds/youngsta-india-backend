@@ -2036,12 +2036,13 @@ def editProduct(request):
             product_attribute.delete()
             for attribute in attributes:
                 try:
-                    attribute_description = AttributeDescription.objects.get(pk=attribute["attributeDescription"])
-                    attribute_obj = ProductAttribute.objects.create(
-                            product=product,
-                            attribute_description=attribute_description,
-                            quantity=attribute["quantity"]
-                        )
+                    if AttributeDescription.objects.filter(pk=attribute["attributeDescription"]).exists():
+                        attribute_description = AttributeDescription.objects.get(pk=attribute["attributeDescription"])
+                        attribute_obj = ProductAttribute.objects.create(
+                                product=product,
+                                attribute_description=attribute_description,
+                                quantity=attribute["quantity"]
+                            )
                      
                 except Exception as e:
                     response_data = {
@@ -2053,11 +2054,13 @@ def editProduct(request):
             
             new_images = [ProductImages(product=product, image=img["image"], thumbnail=False) for img in images]
             ProductImages.objects.bulk_create(new_images)
-            thumbnail_image = ProductImages.objects.create(
-                product = product,
-                image = thumbnail,
-                thumbnail = True
-            )
+
+            if thumbnail:
+                thumbnail_image = ProductImages.objects.create(
+                    product = product,
+                    image = thumbnail,
+                    thumbnail = True
+                )
             response_data = {
                 "StatusCode":6000,
                 "data":{

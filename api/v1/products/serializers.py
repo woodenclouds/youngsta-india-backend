@@ -114,11 +114,14 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
         return stock["total_stock"]
 
     def get_thumbnail(self, instance):
-        image = ProductImages.objects.filter(product=instance, thumbnail=True).latest('created_at')
-        if image:
-            image = image.image
-        else:
-            image = None
+        image = None
+
+        if ProductImages.objects.filter(product=instance, thumbnail=True).exists():
+            image = ProductImages.objects.filter(product=instance, thumbnail=True).latest('created_at')
+            if image:
+                image = image.image
+            else:
+                image = None
         return image
 
     def get_attribute(self, instance):
