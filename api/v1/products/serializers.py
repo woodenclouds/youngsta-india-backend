@@ -46,7 +46,7 @@ class ViewSubCategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SubCategory
-        fields = ("id", "name", "description", "category", "parent")
+        fields = ("id", "name", "description", "category", "image", "parent")
 
 
 class AttributeDescriptionSerializer(serializers.ModelSerializer):
@@ -600,8 +600,11 @@ class InventorySerializers(serializers.ModelSerializer):
         fields = ("id", "name", "thumbnail", "stock", "product_code")
 
     def get_thumbnail(self, instance):
-        image = ProductImages.objects.filter(product=instance, thumbnail=True).latest("created_at")
-        return image.image
+        if (ProductImages.objects.filter(product=instance, thumbnail=True)).exists():
+            image = ProductImages.objects.filter(product=instance, thumbnail=True).latest("created_at")
+            return image.image
+        else:
+            return None
 
     def get_stock(self, instance):
         stock = ProductAttribute.objects.filter(product=instance).aggregate(

@@ -981,6 +981,7 @@ def addSubcategory(request, data=None):
 @permission_classes((AllowAny,))
 def viewSubCategory(request, pk):
     try:
+        print("hi")
         if Category.objects.filter(pk=pk).exists():
             parent_id = request.GET.get(
                 "parent_id"
@@ -2465,6 +2466,10 @@ def editSubCategoryItem(request, pk):
             description = request.data["description"]
         except:
             description = None
+        try:
+            image =request.data["image"]
+        except:
+            image = None
         if not SubCategory.objects.filter(pk=pk).exists():
             response_data = {
                 "StatusCode": 6001,
@@ -2476,6 +2481,9 @@ def editSubCategoryItem(request, pk):
             sub_category.name = name
         if description:
             sub_category.description = description
+        if image:
+            sub_category.image = image
+            
         sub_category.save()
         response_data = {"SatusCode": 6000, "data": {"message": "success updated"}}
     except Exception as e:
