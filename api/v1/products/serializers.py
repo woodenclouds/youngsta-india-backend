@@ -80,6 +80,7 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
     # category = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
     category = serializers.SerializerMethodField()
+    category_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -87,6 +88,7 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "category",
+            "category_id",
             "description",
             "product_sku",
             "actual_price",
@@ -120,8 +122,6 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
             image = ProductImages.objects.filter(product=instance, thumbnail=True).latest('created_at')
             if image:
                 image = image.image
-            else:
-                image = None
         return image
 
     def get_attribute(self, instance):
@@ -159,6 +159,11 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
         else:
             category = ""
         return category
+    
+    def get_category_id(self, instance):
+        if instance.sub_category:
+            return instance.sub_category.category.id
+        return None
 
     def get_images(self, instance):
         product_images = ProductImages.objects.filter(product=instance)
@@ -349,13 +354,18 @@ class EditAttributeSerializer(serializers.ModelSerializer):
 
 class ProductAttributeDescriptionSerializer(serializers.ModelSerializer):
     value = serializers.SerializerMethodField()
+    attributeDescription = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductAttribute
-        fields = ("id", "value", "quantity")
+        fields = ("id", "value", "quantity","attributeDescription")
 
     def get_value(self, instance):
         value = instance.attribute_description.value
+        return value
+    
+    def get_attributeDescription(self, instance):
+        value = instance.attribute_description.id
         return value
 
 
@@ -600,8 +610,11 @@ class InventorySerializers(serializers.ModelSerializer):
         fields = ("id", "name", "thumbnail", "stock", "product_code")
 
     def get_thumbnail(self, instance):
-        image = ProductImages.objects.filter(product=instance, thumbnail=True).latest("created_at")
-        return image.image
+        if ProductImages.objects.filter(product=instance, thumbnail=True).exists():
+            image = ProductImages.objects.filter(product=instance, thumbnail=True).latest("created_at")
+            return image.image
+        
+        return None
 
     def get_stock(self, instance):
         stock = ProductAttribute.objects.filter(product=instance).aggregate(

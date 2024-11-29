@@ -2034,6 +2034,7 @@ def editProduct(request):
                     product.sub_category = sub_category
             product_attribute = ProductAttribute.objects.filter(product=product)
             product_attribute.delete()
+            
             for attribute in attributes:
                 try:
                     if AttributeDescription.objects.filter(pk=attribute["attributeDescription"]).exists():
@@ -2043,7 +2044,6 @@ def editProduct(request):
                                 attribute_description=attribute_description,
                                 quantity=attribute["quantity"]
                             )
-                     
                 except Exception as e:
                     response_data = {
                         "StatusCode":6001,
@@ -2056,7 +2056,7 @@ def editProduct(request):
             ProductImages.objects.bulk_create(new_images)
 
             if thumbnail:
-                thumbnail_image = ProductImages.objects.create(
+                ProductImages.objects.create(
                     product = product,
                     image = thumbnail,
                     thumbnail = True
