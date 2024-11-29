@@ -1914,7 +1914,7 @@ def addProductNew(request):
             try:
                 gst_price = request.data["gst_price"]
             except:
-                gst_price = "";
+                gst_price = ""
             try:
                 cashback = request.data["cashback"]
             except:
