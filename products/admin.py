@@ -48,6 +48,12 @@ admin.site.register(Product, ProductAdmin)
 
 admin.site.register(ProductAttribute)
 
+class ProductImagesAdmin(admin.ModelAdmin):
+    list_display=('pk', 'image' )
+    search_fields = ('pk', 'image' )
+
+admin.site.register(ProductImages, ProductImagesAdmin)
+
 # class ProductImageAdmin(admin.ModelAdmin):
 #     list_display=("pk","product", "image", "thumbnail")
 # admin.site.register(ProductImages, ProductImageAdmin)

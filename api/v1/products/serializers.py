@@ -46,7 +46,7 @@ class ViewSubCategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SubCategory
-        fields = ("id", "name", "description", "category", "parent")
+        fields = ("id", "name", "description", "category", "image", "parent")
 
 
 class AttributeDescriptionSerializer(serializers.ModelSerializer):

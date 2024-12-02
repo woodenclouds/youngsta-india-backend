@@ -933,6 +933,30 @@ def order_stats(request):
 
 
 @api_view(["GET"])
+def product_count(request):
+    out_of_stock = Product.objects.annotate(
+                total_quantity=Sum("productattribute__quantity")
+            ).filter(total_quantity=0).count()
+    low_stock = Product.objects.annotate(
+                total_quantity=Sum("productattribute__quantity")
+            ).filter(total_quantity__gt=0, total_quantity__lte=20).count()
+      
+
+    stats = {
+        "out_of_stock":out_of_stock ,
+        "low_stock":low_stock ,
+    }
+
+    response_data = {
+        "StatusCode": 6000,
+        "data": stats,
+    }
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+
+@api_view(["GET"])
 @group_required(
     [
         "admin",

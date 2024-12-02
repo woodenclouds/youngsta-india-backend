@@ -56,6 +56,7 @@ urlpatterns = [
     re_path(r"^admin/transactions/$", views.view_accounts, name="view_accounts"),
     re_path(r"^admin/purchase-graph/$", views.weekly_purchase, name="view_purchases"),
     re_path(r"^admin/dashboard-data/$", views.order_stats, name="view_purchases"),
+    re_path(r"^admin/product-count/$", views.product_count, name="product_count"),
     re_path(r"^admin/view-status/$", views.view_statusses, name="view_statusses"),
     re_path(r"^admin/get-service-availability/$", views.get_service_availability, name="view_statusses"),
 
