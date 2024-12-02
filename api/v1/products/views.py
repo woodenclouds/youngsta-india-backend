@@ -1540,6 +1540,7 @@ def subcategory_tree(request, pk):
                         "id": child.id,
                         "name": child.name,
                         "description": child.description,
+                        # "image": request.build_absolute_uri(child.image) if child.image else None,
                         "children": get_children(child),
                     }
                     for child in children
@@ -2444,6 +2445,7 @@ def viewSubCategoryItem(request, pk):
                 "id": sub_category.pk,
                 "name": sub_category.name,
                 "description": sub_category.description,
+                "image": sub_category.image,
             },
         }
     except Exception as e:

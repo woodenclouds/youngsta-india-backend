@@ -249,11 +249,11 @@ def editCoupen(request, pk):
         data = request.data
         if Coupens.objects.filter(pk=pk).exists():
             coupen = Coupens.objects.get(pk=pk)
-            coupen.offer = data["offer"]
-            coupen.offer_end_price = data["offer_end_price"]
-            coupen.offer_start_price = data["offer_start_price"]
-            coupen.offer_price = data["offer_price"]
-            coupen.validity = data["validity"]
+            coupen.offer = data.get("offer")
+            coupen.offer_end_price = data.get("offer_end_price")
+            coupen.offer_start_price = data.get("offer_start_price")
+            coupen.offer_price = data.get("offer_price")
+            coupen.validity = data.get("validity")
             coupen.save()
             response_data = {"StatusCode": 6000, "data": {"message": "coupen updated"}}
     except Exception as e:

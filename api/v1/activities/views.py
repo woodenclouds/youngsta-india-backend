@@ -791,11 +791,9 @@ def view_oders(request):
     filter = request.GET.get("filter")
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
-    instances = Purchase.objects.all()  # Initialize instances here
+    instances = Purchase.objects.filter(is_deleted=False)  # Initialize instances here
 
-    if filter == "All":
-        pass  # No need to change instances
-    else:
+    if filter and filter != "All":
         instances = instances.filter(status=filter)
 
     if filter == "Return":
@@ -823,13 +821,15 @@ def view_oders(request):
     else:
         serializer = ReturnSerializer(instance, many=True).data
 
-    pending_orders = Purchase.objects.filter(status="Pending").count()
-    all_count = Purchase.objects.filter(is_deleted=False).count()
-    accepted_count = Purchase.objects.filter(status="Accepted").count()
-    shipped_count = Purchase.objects.filter(status="Shipped").count()
-    delivered_count = Purchase.objects.filter(status="Delivered").count()
-    cancelled_count = Purchase.objects.filter(status="Cancelled").count()
-    Return_count = Purchase.objects.filter(status="Return").count()
+    purchase_instances = Purchase.objects.filter(is_deleted=False)
+
+    all_count = purchase_instances.count()
+    Return_count = purchase_instances.filter(status="Return").count()
+    shipped_count = purchase_instances.filter(status="Shipped").count()
+    pending_orders = purchase_instances.filter(status="Pending").count()
+    accepted_count = purchase_instances.filter(status="Accepted").count()
+    delivered_count = purchase_instances.filter(status="Delivered").count()
+    cancelled_count = purchase_instances.filter(status="Cancelled").count()
 
     response_data = {
         "StatusCode": 6000,
@@ -1055,12 +1055,13 @@ def add_purchase_log(request, pk):
 @group_required(["admin"])
 def view_order_count(request):
     try:
-        purchase = Purchase.objects.all()
-        pending_purchase_count = (
-            PurchaseLogs.objects.filter(purchase__in=purchase, status__order_id=0)
-            .distinct("purchase")
-            .count()
-        )
+        purchase = Purchase.objects.filter(is_deleted=False)
+        pending_purchase_count = purchase.filter(status="Pending").count()
+        # pending_purchase_count = (
+        #     PurchaseLogs.objects.filter(purchase__in=purchase, status__order_id=0)
+        #     .distinct("purchase")
+        #     .count()
+        # )
         order_proccessing_count = (
             PurchaseLogs.objects.filter(purchase__in=purchase)
             .exclude(status__order_id__in=[0, 5])
