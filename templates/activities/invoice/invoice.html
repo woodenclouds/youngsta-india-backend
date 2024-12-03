@@ -170,11 +170,19 @@
 					<td width="40%">
 						<div class="section-title">Bill to</div>
 						<p style="font-size: 12px">
-							{{ order.billing_details.billing_name }},
+							{% if order.billing_details.billing_name %}
+								{{ order.billing_details.billing_name }},
+							{% endif %}
 							{{order.billing_details.billing_address }}<br />
-							{{ order.billing_details.billing_street }},
-							{{order.billing_details.billing_city }},
-							{{order.billing_details.billing_pincode }}<br />
+							{% if order.billing_details.billing_street %}
+								{{ order.billing_details.billing_street }},
+							{% endif %}
+							{% if order.billing_details.billing_street %}
+								{{order.billing_details.billing_street }},
+							{% endif %}
+							{% if order.billing_details.billing_pincode %}
+								{{order.billing_details.billing_pincode }}<br />
+							{% endif %}
 							{{ order.billing_details.billing_state }}
 							{{order.billing_details.billing_country }}<br />
 							Phone: {{ order.billing_details.billing_phone }}

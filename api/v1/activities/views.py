@@ -1357,7 +1357,6 @@ def admin_create_orders(request):
                     source = source_obj,
                 )
             
-            purchase.update_total_amount()
 
             for item_data in product_data:
                 product = Product.objects.get(id=item_data.get('productName'))
@@ -1365,16 +1364,18 @@ def admin_create_orders(request):
                 PurchaseItems.objects.create(
                     purchase=purchase,
                     product = product, 
+                    price=product.price,
                     # attribute = item_data.get('product_attribute'),
                     quantity = item_data.get('quantity'),
                     # price = item_data.get('unitPrice'),                                  
                 )
+            purchase.update_total_amount()
             current_time = datetime.datetime.now().date()
             invoice = Invoice.objects.create(
                     invoice_no = invoice_number,
                     issued_at = current_time,
                     customer_name = customer_name,
-                    # total_amount = total_amount,
+                    total_amount = 0,
                     purchase = purchase,
                 )
            
@@ -1623,7 +1624,7 @@ def view_oder_detail(request, pk):
         response_data = {
             "StatusCode": 6000,
             "data": {
-                "name": f"{user_profile.first_name} {user_profile.last_name}",
+                "name": f"{user_profile.first_name} {user_profile.last_name if user_profile.last_name else None}",
                 "total_amount": purchase.total_amount,
                 "status": purchase.status,
                 "order_data": purchase.created_at,
