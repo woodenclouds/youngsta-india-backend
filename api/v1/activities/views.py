@@ -791,7 +791,7 @@ def view_oders(request):
     filter = request.GET.get("filter")
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
-    instances = Purchase.objects.filter(is_deleted=False)  # Initialize instances here
+    instances = Purchase.objects.filter(is_deleted=False).order_by("-created_at")  # Initialize instances here
 
     if filter and filter != "All":
         instances = instances.filter(status=filter)
@@ -1285,7 +1285,8 @@ def admin_create_orders(request):
     try:
         serialized_data = OrderSerializer(data=request.data)
         if serialized_data.is_valid():
-            invoice_number = request.data["invoiceNumber"]
+            invoice_number = 0
+            # invoice_number = request.data["invoiceNumber"]
             customer_name = request.data["customerName"]
             address = request.data["deliveryAddress"]
             billing_address = request.data["billingAddress"]
@@ -1336,25 +1337,27 @@ def admin_create_orders(request):
                     phone = phone,
                     )
 
-            total_amount = 0
-            for item in product_data:
-              total_amount += int(item.get('totalPrice', 0) or 0)
+            # total_amount = 0
+            # for item in product_data:
+            #   total_amount += int(item.get('totalPrice', 0) or 0)
 
-            if Invoice.objects.filter(invoice_no=invoice_number).exists():
-                response_data = {
-                    "StatusCode": 6002,
-                    "data": {"message": "Invoice number already exists."}                  }
-                return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
+            # if Invoice.objects.filter(invoice_no=invoice_number).exists():
+            #     response_data = {
+            #         "StatusCode": 6002,
+            #         "data": {"message": "Invoice number already exists."}                  }
+            #     return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
 
             purchase = Purchase.objects.create(
                     user=user,
-                    total_amount = total_amount,
+                    total_amount = 0,
                     invoice_no = invoice_number,
                     status = "pending",
                     address = address,
                     method =method,
                     source = source_obj,
                 )
+            
+            purchase.update_total_amount()
 
             for item_data in product_data:
                 product = Product.objects.get(id=item_data.get('productName'))
@@ -1371,7 +1374,7 @@ def admin_create_orders(request):
                     invoice_no = invoice_number,
                     issued_at = current_time,
                     customer_name = customer_name,
-                    total_amount = total_amount,
+                    # total_amount = total_amount,
                     purchase = purchase,
                 )
            

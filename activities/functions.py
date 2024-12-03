@@ -1,4 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
+from datetime import date
+
 from .models import ActivityLog
 
 def log_activity(user, action, object_instance=None):
@@ -18,3 +20,18 @@ def log_activity(user, action, object_instance=None):
         object_id=object_id,
     )
     return activity_log
+
+
+
+def generate_invoice_number(prefix="YNGSTA", counter=1):
+    # Determine the financial year
+    current_year = date.today().year
+    current_month = date.today().month
+    if current_month < 4:
+        financial_year = f"{current_year-1 % 100:02d}{current_year % 100:02d}"
+    else:
+        financial_year = f"{current_year % 100:02d}{(current_year + 1) % 100:02d}"
+    
+    # Generate the serial number
+    serial_number = f"{prefix}{financial_year}{counter:03d}"
+    return serial_number

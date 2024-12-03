@@ -208,7 +208,7 @@ class Purchase(BaseModel):
     order_status = models.CharField(max_length=255, blank=True, null=True)
     refferal = models.CharField(max_length=10, blank=True, null=True)
     active = models.BooleanField(default=True, blank=True, null=True)
-    invoice_no = models.CharField(max_length=10, blank=True, null=True)
+    invoice_no = models.CharField(max_length=128, blank=True, null=True)
     method = models.CharField(choices=PAYMENT_METHOD, blank=True, null=True,max_length=255)
     source = models.ForeignKey(Sources, on_delete=models.CASCADE, blank=True, null=True)
   
@@ -217,7 +217,7 @@ class Purchase(BaseModel):
         return f"Purchase for {self.user.username}"
 
     def update_total_amount(self):
-        total = sum(item.price * item.quantity for item in self.PurchaseItems.all())
+        total = sum(item.price * item.quantity for item in self.purchase_items.all())
         self.total_amount = total
         self.save()
 

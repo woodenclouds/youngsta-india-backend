@@ -258,6 +258,7 @@ class OrderSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
     customer_details = serializers.SerializerMethodField()
     address = serializers.SerializerMethodField()
+    invoice_no = serializers.SerializerMethodField()
 
     # product_details = serializers.SerializerMethodField()
 
@@ -269,7 +270,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "status",
             "total_amount",
             "customer_details",
-            "invoice_no",
+            # "invoice_no",
             "address",
             "invoice_no"
         )
@@ -297,6 +298,13 @@ class OrderSerializer(serializers.ModelSerializer):
             "phone": f"{user.country_code} {user.phone_number}",
         }
         return customer_details
+    
+    def get_invoice_no(self,instance):
+        
+        if instance.invoices.filter().exists():
+            invoice = instance.invoices.filter().latest("-issued_at")
+            return invoice.invoice_no
+        return None
 
 
 
