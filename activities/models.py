@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.auth.models import User
@@ -240,6 +242,7 @@ class PurchaseItems(BaseModel):
     price = models.PositiveBigIntegerField(blank=True, null=True)
     is_returned = models.BooleanField(default=False, blank=True, null=True)
     is_cancelled = models.BooleanField(default=False, blank=True, null=True)
+    credit_note = models.ForeignKey("activities.CreditNote",on_delete=models.CASCADE,null=True,blank=True,related_name="cancelled_items")
 
     def __str__(self):
         return f"{self.product.name} in {self.purchase.user.username}'s purchase"
@@ -333,4 +336,72 @@ class Return(BaseModel):
         verbose_name = "Return"
         verbose_name_plural = "Returns"
 
+class FinancialYear(BaseModel):
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('closed', 'Closed'),
+    ]
     
+    year = models.CharField(max_length=128)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    status = models.CharField(max_length=128,default="active",choices=STATUS_CHOICES)
+    
+    class Meta:
+        db_table = "activities_financial_year"
+        verbose_name = "Financial Year"
+        verbose_name_plural = "Financial Years"
+        
+    def __str__(self):
+        return self.year
+    
+    
+    
+class CreditNote(BaseModel):
+    financial_year = models.ForeignKey(FinancialYear,on_delete=models.CASCADE,related_name="credit_notes")
+    date = models.DateField()
+    purchase = models.ForeignKey(Purchase,on_delete=models.CASCADE,related_name="credit_notes",null=True,blank=True)
+    credit_note_number = models.CharField(max_length=255,null=True,blank=True)
+    amount = models.CharField(max_length=255)
+    
+    class Meta:
+        db_table = "activities_credit_note"
+        verbose_name = "Credit Note"
+        verbose_name_plural = "Credit Notes"
+        
+    def __str__(self):
+        return self.credit_note_number
+    
+    def save(self, *args, **kwargs):
+        if not self.credit_note_number:
+            self.credit_note_number = self.generate_unique_credit_note_number()
+            
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def get_financial_year():
+        current_year = date.today().year
+        current_month = date.today().month
+        if current_month < 4:
+            return f"{current_year-1 % 100:02d}{current_year % 100:02d}"
+        else:
+            return f"{current_year % 100:02d}{(current_year + 1) % 100:02d}"
+
+    def generate_unique_credit_note_number(self):
+        prefix = "CN-YNGSTA-"
+        financial_year = self.get_financial_year()
+        new_counter = 1
+
+        # Get the maximum counter for the current financial year
+        if CreditNote.objects.filter(credit_note_number__startswith=f"{prefix}{financial_year}").exists():
+            last_credit_note = (
+                CreditNote.objects.filter(credit_note_number__startswith=f"{prefix}{financial_year}")
+                .order_by("-credit_note_number")
+                .first()
+            )
+
+            last_counter = int(last_credit_note.credit_note_number[-3:])  # Extract the last 3 digits
+            new_counter = last_counter + 1
+
+        # Format the new invoice number
+        return f"{prefix}{financial_year}{new_counter:03d}"

@@ -155,3 +155,4 @@ RAZORPAY_KEY_SECRET = "DSypqxiBvxfaSTO3dFavcEpM"
 SHIPROCKET_EMAIL = "youngstatech@gmail.com"
 SHIPROCKET_PASSWORD = "QduVuBKQ9YNy*Wy"
 
+USE_TZ = True

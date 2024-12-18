@@ -7,6 +7,7 @@ from datetime import datetime
 from payments.models import *
 from django.core.exceptions import ObjectDoesNotExist
 from accounts.models import *
+from django.db.models import F, Sum
 
 import ast
 import random
@@ -32,6 +33,7 @@ class WishlistItemSerializer(serializers.ModelSerializer):
 
 class CartItemSerializer(serializers.ModelSerializer):
     product_info = serializers.SerializerMethodField()
+    attribute = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
@@ -41,6 +43,7 @@ class CartItemSerializer(serializers.ModelSerializer):
             "quantity",
             "price",
             "product_info",
+            "attribute"
         )
 
     def get_product_info(self, instance):
@@ -48,6 +51,17 @@ class CartItemSerializer(serializers.ModelSerializer):
         product = Product.objects.get(pk=instance.product.id)
         serialized = ProductViewSerializer(product,context = {"request": request}).data
         return serialized
+    
+    def get_attribute(self, instance):
+
+        if instance.attribute.attribute_description:
+
+            return {
+                "name":instance.attribute.attribute_description.attribute_type.name,
+                "value":instance.attribute.attribute_description.value
+            }
+       
+        return None
 
 
 class CartSerializer(serializers.ModelSerializer):
@@ -332,18 +346,18 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
         fields = ("id", "product_details", "quantity", "attribute", "price","is_cancelled", "is_returned")
 
     def get_product_details(self, instance):
+        product_detail = {
+            "name": instance.product.name,
+            "selling_price": instance.product.selling_price,
+        }
 
         if ProductImages.objects.filter(product=instance.product, thumbnail=True).exists():
             thumbnail = ProductImages.objects.filter(
                 product=instance.product, thumbnail=True
             ).latest("created_at")
-            product_detail = {
-                "name": instance.product.name,
-                "selling_price": instance.product.selling_price,
-                "thumbnail": thumbnail.image,
-            }
-            return product_detail
-        return None
+            product_detail["thumbnail"] = thumbnail.image
+    
+        return product_detail
 
     # def get_order_data(self,instance):
     #     try:
@@ -411,3 +425,95 @@ class SourcesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sources
         fields = ["id","name"]
+        
+        
+class CreateFinancialYearSerializer(serializers.Serializer):
+    year = serializers.CharField()
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+    
+    def create(self,validated_data):
+        financial_year = FinancialYear.objects.create(
+          year=validated_data.get("year"),
+          start_date=validated_data.get("start_date"),
+          end_date=validated_data.get("end_date")  
+        )
+        return financial_year
+    
+    
+class FinancialYearsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FinancialYear
+        fields = ["id","year","start_date","end_date","get_status_display"]
+        
+        
+"""
+    CREDIT NOTE
+"""
+        
+class CreditNotesSerializer(serializers.ModelSerializer):
+    invoice_no = serializers.SerializerMethodField()
+    financial_year = serializers.SerializerMethodField()
+    cancelled_items = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CreditNote
+        fields = ["id","invoice_no","financial_year","credit_note_number","amount","date","cancelled_items"]
+        
+    def get_invoice_no(self,instance):
+        return instance.purchase.invoice_no if instance.purchase else None
+        
+    def get_financial_year(self,instance):
+        return instance.financial_year.year if instance.financial_year else None
+    
+    def get_cancelled_items(self,instance):
+        cancelled_items_queryset = instance.cancelled_items.filter(is_deleted=False)
+    
+        if cancelled_items_queryset.exists():
+            # Annotate additional fields with unique names
+            cancelled_items = cancelled_items_queryset.annotate(
+                product_name=F('product__name'),
+                item_quantity=F('quantity'),  # Rename the annotated field
+                item_price=F('price')  # Rename the annotated field
+            ).values("product_name", "item_quantity", "item_price")
+            
+            return list(cancelled_items)
+        
+        return []
+        
+        
+class CreateCreditNoteSerializer(serializers.Serializer):
+    financial_year_id = serializers.CharField()
+    purchase_id = serializers.CharField()
+    date = serializers.DateField()
+    # amount = serializers.FloatField()
+    cancelled_items = serializers.ListField(
+        child=serializers.CharField(max_length=258), 
+        allow_empty=False,
+        required=True,
+    )
+    
+    def create(self, validated_data):
+        print(validated_data)
+        financial_year = FinancialYear.objects.get(pk=validated_data.get("financial_year_id"))
+        purchase = Purchase.objects.get(pk=validated_data.get("purchase_id"))
+        
+        cancelled_items = validated_data.get("cancelled_items")
+        
+        credit_note = CreditNote.objects.create(
+          financial_year=financial_year,
+          purchase=purchase,
+          date=validated_data.get("date"),
+        )
+        
+        if PurchaseItems.objects.filter(pk__in=cancelled_items,purchase=purchase,is_deleted=False).exists():
+            total_price = PurchaseItems.objects.filter(pk__in=cancelled_items,purchase=purchase,is_deleted=False).annotate(
+                total=F('price') * F('quantity')
+            ).aggregate(
+                total_price_sum=Sum('total')
+            )
+            credit_note.amount = total_price.get("total_price_sum")
+            credit_note.save()
+            PurchaseItems.objects.filter(pk__in=cancelled_items,is_deleted=False).update(credit_note=credit_note,is_returned=True)
+
+        return credit_note

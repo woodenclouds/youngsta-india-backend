@@ -136,8 +136,8 @@ def create_order(request):
                 cart.save()
                 cash_free_args = {
                     "request": request,
-                    "customer_profile": customer_profile,
                     "instance": purchase,
+                    "customer_profile": customer_profile,
                 }
                 cash_free_create_order_response, payment_link_status = create_cash_free_order(
                     cash_free_args
@@ -231,11 +231,11 @@ def handle_response(request):
                 url = "https://youngsta.in/my-account/orders?action=payment_success"
                 return redirect(url)
             else:
-                url = "https://youngsta.in/my-account/orders?action=payment_failed"
+                url = f"https://youngsta.in/my-account/orders?action={order_status.get('order_status')}"
                 return redirect(url)
         else:
-            url = "https://youngsta.in/my-account/orders?action=payment_failed"
+            url = f"https://youngsta.in/my-account/orders?action={order_status_response.status_code}"
             return redirect(url)
     else:
-        url = "https://youngsta.in/my-account/orders?action=payment_failed"
+        url = f"https://youngsta.in/my-account/orders?action={purchase_id}"
         return redirect(url)

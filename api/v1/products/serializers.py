@@ -355,10 +355,11 @@ class EditAttributeSerializer(serializers.ModelSerializer):
 class ProductAttributeDescriptionSerializer(serializers.ModelSerializer):
     value = serializers.SerializerMethodField()
     attributeDescription = serializers.SerializerMethodField()
+    attributeDescription_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductAttribute
-        fields = ("id", "value", "quantity","attributeDescription")
+        fields = ("id", "value", "quantity","attributeDescription","attributeDescription_name")
 
     def get_value(self, instance):
         value = instance.attribute_description.value
@@ -366,6 +367,9 @@ class ProductAttributeDescriptionSerializer(serializers.ModelSerializer):
     
     def get_attributeDescription(self, instance):
         value = instance.attribute_description.id
+        return value
+    def get_attributeDescription_name(self, instance):
+        value = instance.attribute_description.attribute_type.name
         return value
 
 

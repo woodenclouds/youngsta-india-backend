@@ -73,3 +73,15 @@ admin.site.register(Referral)
 class SourcesAdmin(admin.ModelAdmin):
     list_display = ("id", "name")
     ordering = ("id",)
+
+
+@admin.register(FinancialYear)
+class FinancialYearAdmin(admin.ModelAdmin):
+    list_display = ("id", "year","status","start_date","end_date")
+    ordering = ["year"]
+    
+    
+@admin.register(CreditNote)
+class CreditNoteAdmin(admin.ModelAdmin):
+    list_display = ["id", "financial_year","date","amount","purchase"]
+    

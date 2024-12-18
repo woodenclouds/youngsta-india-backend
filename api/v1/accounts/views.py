@@ -372,7 +372,10 @@ def admin_login(request):
         if serializer.is_valid():
             email = request.data["email"]
             password = request.data["password"]
+            print(User.objects.filter(username=email).exists())
+            print(User.objects.get(username=email).check_password(password))
             user = authenticate(request, username=email, password=password)
+            print(user,"user---")
             if user is not None and user.is_active:
                 print(user.username, "__________")
                 refresh = RefreshToken.for_user(user)

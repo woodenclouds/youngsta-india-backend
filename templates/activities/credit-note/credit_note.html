@@ -1,0 +1,249 @@
+<!-- @format -->
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+		<title>Credit Note #{{ credit_note.order_details.order_id }}</title>
+		<style>
+			body {
+				font-family: "DejaVu Sans", "Roboto", "Arial", sans-serif;
+				margin: 0;
+				padding: 0;
+				color: #333;
+			}
+
+			.invoice-container {
+				width: 90%;
+				margin: auto;
+				padding: 0px;
+				border-radius: 5px;
+			}
+
+			.footer {
+				text-align: right;
+				color: #007cdb;
+				font-size: 24px; /* Increased font size for footer */
+				margin-top: 0px;
+			}
+
+			.invoice-header {
+				text-align: left;
+				margin-bottom: 20px;
+			}
+
+			.invoice-header h2 {
+				font-size: 20px; /* Increased header size */
+				margin-bottom: 5px;
+				color: #007bff; /* Added color */
+			}
+
+			table {
+				width: 100%;
+				margin-bottom: 20px;
+				border-collapse: collapse; /* Ensure borders do not double */
+			}
+
+			th {
+				padding: 10px; /* Added padding for readability */
+				vertical-align: top;
+				font-size: 12px;
+			}
+			td {
+				padding: 5px; /* Added padding for readability */
+				vertical-align: top;
+				font-size: 12px;
+			}
+
+			th {
+				font-weight: bold;
+			}
+
+			/* Remove borders from the table */
+			table,
+			th,
+			td {
+				border: none;
+			}
+
+			/* Styles for sections */
+			.section-title {
+				font-weight: bold;
+				margin-bottom: 5px;
+				font-size: 12px;
+			}
+
+			/* Totals Section */
+			.totals {
+				width: 100%;
+				margin-top: 20px;
+			}
+
+			.totals {
+				float: right; /* Aligns the totals table to the right */
+				width: auto; /* Adjusts width automatically */
+			}
+
+			.grand-total {
+				font-size: 12px;
+				font-weight: bold;
+				text-align: right; /* Align text to right */
+			}
+
+			/* HR Styling */
+			hr {
+				border: 1px solid #000;
+				margin: 15px 0;
+			}
+
+			.header .tax-header {
+				border: 1px solid #000 !important;
+				padding: 10px;
+				display: inline-block;
+				font-size: 12px;
+				font-weight: bold;
+			}
+
+			.table-header {
+				font-size: 12px;
+				font-weight: bold;
+				text-align: left;
+			}
+		</style>
+	</head>
+	<body>
+		<h1></h1>
+		<!-- <div class="totals">
+			<table>
+				<tr>
+					<td></td>
+					<td></td>
+					<td style="width: 100%; text-align: right">
+						Tax Invoice {{ invoice.tax_invoice_number }}
+					</td>
+				</tr>
+			</table>
+		</div> -->
+
+		<div class="invoice-container">
+			<table style="width: 100%; border: none; border-collapse: collapse">
+				<tr>
+					<td style="width: 120px; padding: 0; margin: 0">
+						<!-- src="{% static '/images/youngsta_logo.png' %}" -->
+						<img
+							src="{{ logo_url }}"
+							alt="Company Logo"
+							style="width: 100px; height: auto"
+						/>
+						<!-- <img src="../activities/static/images/youngsta_logo.png" alt="Company Logo" style="width: 100px; height: auto;"> -->
+					</td>
+					<td style="text-align: left; padding: 0; margin: 0">
+						<!-- <h4 style="margin: 0;">GSTIN: 32BFPPV1234N1Z0</h4> -->
+						<h4 style="margin: 0">YOUNGSTA</h4>
+						<h4 style="margin: 0">Kerala, India</h4>
+						<!-- <h4 style="margin: 0;">Contact Us: +1 254 568-5479 || youngsta@gmail.com</h4> -->
+					</td>
+				</tr>
+			</table>
+			<hr />
+			<table>
+				<tr>
+					<td width="45%">
+						<!-- <div class="section-title">Order Details:</div> -->
+						<p>
+							<strong>#Credit Note:</strong> {{ credit_note.credit_note_number }}<br />
+							<strong>#Date:</strong>
+							{{credit_note.date}}<br />
+							<strong>#Ref Invoice No:</strong>
+							{{credit_note.purchase.invoice_no}}<br />
+							<strong>#Refunded</strong>
+						</p>
+					</td>
+
+					<td width="40%">
+						<div class="section-title">Billed to</div>
+						<p style="font-size: 12px">
+							{% if credit_note.purchase.address.first_name %}
+								{{ credit_note.purchase.address.first_name }},
+							{% endif %}
+							{{credit_note.purchase.address.address }}<br />
+							{% if credit_note.purchase.address.street %}
+								{{ credit_note.purchase.address.street }},
+							{% endif %}
+							{% if credit_note.purchase.address.pincode %}
+								{{credit_note.purchase.address.pincode }}<br />
+							{% endif %}
+							{{ credit_note.purchase.address.state }}
+							{{credit_note.purchase.address.country }}<br />
+							Phone: {{ credit_note.purchase.address.phone }}
+						</p>
+					</td>
+				</tr>
+			</table>
+
+			<hr />
+
+			<!-- Items Table -->
+			<table>
+				<thead>
+					<tr class="product-detail-title">
+						<th class="table-header" style="text-align: left">Product</th>
+						<th class="table-header" style="text-align: left">Title</th>
+						<th class="table-header" style="text-align: center">Qnty</th>
+						<th class="table-header" style="text-align: right">Price</th>
+						<!-- <th class="table-header" style="text-align: right">CGST</th>
+						<th class="table-header" style="text-align: right">SGST</th>
+						<th class="table-header" style="text-align: right">Total</th> -->
+					</tr>
+				</thead>
+				<tr style="border-top: 1px solid black">
+					<!-- This adds a black line -->
+					<td colspan="5" style="padding: 0"></td>
+					<!-- Empty row to hold the line -->
+				</tr>
+				<tbody>
+					{% for item in purchase_items %}
+					<tr>
+						<td style="text-align: left">
+							{{ item.description }}<br />
+							{{ item.product_code }}
+						</td>
+						<td style="text-align: left">{{ item.name }}</td>
+						<td style="text-align: center">{{ item.quantity }}</td>
+						<td style="text-align: right">{{ item.price }}</td>
+						<td style="text-align: right">{{ item.total }}</td>
+					</tr>
+					{% if not forloop.last %}
+					<tr>
+						<td
+							colspan="7"
+							style="
+								margin: 0;
+								padding: 0;
+								border-top: 1px solid rgb(191, 191, 191);
+							"
+						></td>
+					</tr>
+					{% endif %} {% endfor %}
+				</tbody>
+			</table>
+			<hr />
+			<div class="totals">
+				<table>
+					<tr>
+						<td class="grand-total" style="position: relative">
+							Grand Total: Rs {{ total_amount }}<br />
+						</td>
+					</tr>
+				</table>
+			</div>
+
+			<!-- <div style="text-align: right;">
+            <hr style="width: 30%; border: 1px solid #000; margin: 15px 0; margin-left: auto;">
+        </div> -->
+		</div>
+	</body>
+</html>

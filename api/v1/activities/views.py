@@ -788,11 +788,21 @@ def purchase_success(request, pk):
 @api_view(["GET"])
 @group_required(["admin"])
 def view_oders(request):
+    search = request.GET.get("q")
     filter = request.GET.get("filter")
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
     instances = Purchase.objects.filter(is_deleted=False).order_by("-created_at")  # Initialize instances here
 
+    all_count = instances.count()
+    Return_count = instances.filter(status="Return").count()
+    shipped_count = instances.filter(status="Shipped").count()
+    pending_orders = instances.filter(status="Pending").count()
+    accepted_count = instances.filter(status="Accepted").count()
+    delivered_count = instances.filter(status="Delivered").count()
+    cancelled_count = instances.filter(status="Cancelled").count()
+    
+    
     if filter and filter != "All":
         instances = instances.filter(status=filter)
 
@@ -800,6 +810,10 @@ def view_oders(request):
         instance = Return.objects.filter(is_deleted=False)
     if start_date and end_date:
         instances = instances.filter(created_at__range=[start_date, end_date]).order_by("-created_at")
+    
+    if search:
+        instances = instances.filter(invoice_no__icontains=search)  
+    
     paginator = Paginator(instances, 10)
     page = request.GET.get("page")
 
@@ -821,15 +835,6 @@ def view_oders(request):
     else:
         serializer = ReturnSerializer(instance, many=True).data
 
-    purchase_instances = Purchase.objects.filter(is_deleted=False)
-
-    all_count = purchase_instances.count()
-    Return_count = purchase_instances.filter(status="Return").count()
-    shipped_count = purchase_instances.filter(status="Shipped").count()
-    pending_orders = purchase_instances.filter(status="Pending").count()
-    accepted_count = purchase_instances.filter(status="Accepted").count()
-    delivered_count = purchase_instances.filter(status="Delivered").count()
-    cancelled_count = purchase_instances.filter(status="Cancelled").count()
 
     response_data = {
         "StatusCode": 6000,
@@ -1876,3 +1881,269 @@ def apply_coupen(request):
         }
 
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_financial_years(request):
+    
+    try:
+        if FinancialYear.objects.filter(is_deleted=False).exists():
+            financial_years = FinancialYear.objects.filter(is_deleted=False)
+            
+            serialized_data = FinancialYearsSerializer(financial_years,many=True).data
+            
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "data":serialized_data,
+                    "title": "Success",
+                    "message": "Successfully fetched financial years",
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "title": "Failed",
+                    "message":"Financial Years not found"
+                }
+            }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_financial_year(request):
+    
+    try:
+        serializer = CreateFinancialYearSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            serializer.save()
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": "Successfully created financial year",
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Invalid request",
+                    "errors": serializer.errors
+                }
+            }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def update_financial_year_status(request,pk):
+    
+    try:
+        status_ = request.data.get("status","active")
+        
+        if FinancialYear.objects.filter(pk=pk,is_deleted=False).exists():
+            financial_year = FinancialYear.objects.filter(pk=pk,is_deleted=False).first()
+            
+            financial_year.status = status_
+            financial_year.save()
+            
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": "Status updated successfully",
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Invalid request",
+                    "errors": "Financial year not found"
+                }
+            }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_financial_year_status(request,pk):
+    
+    try:
+        
+        if FinancialYear.objects.filter(pk=pk,is_deleted=False).exists():
+            financial_year = FinancialYear.objects.filter(pk=pk,is_deleted=False).first()
+            
+            financial_year.delete()
+            
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": "Financial Year deleted successfully",
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Invalid request",
+                    "errors": "Financial year not found"
+                }
+            }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+"""
+    CREDIT NOTE
+"""
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_credit_notes(request):
+    
+    try:
+        if CreditNote.objects.filter(is_deleted=False).exists():
+            credit_notes = CreditNote.objects.filter(is_deleted=False)
+            
+            serialized_data = CreditNotesSerializer(credit_notes,many=True).data
+            
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "data": serialized_data,
+                    "title": "Success",
+                    "message": "Successfully fetched credit notes",
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "title": "Failed",
+                    "message":"Credit Notes not found"
+                }
+            }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+        
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_credit_note(request):
+    
+    try:
+        serializer = CreateCreditNoteSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            serializer.save()
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "message": "Successfully created credit note",
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Invalid request",
+                    "errors": serializer.errors
+                }
+            }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+
+@csrf_exempt
+def download_credit_note(request, pk):
+    
+    if CreditNote.objects.filter(pk=pk,is_deleted=False).exists():
+        credit_note = CreditNote.objects.filter(pk=pk,is_deleted=False).first()
+        purchase_items = []
+        total_amount = 0
+        
+        for purchase_item in credit_note.cancelled_items.filter(is_deleted=False):
+            item_total = float(purchase_item.price if purchase_item.price else 0) * float(purchase_item.quantity if purchase_item.quantity else 1)
+            
+            purchase_items.append({
+                "description": purchase_item.product.description,
+                "product_code": purchase_item.product.product_code,
+                "name": purchase_item.product.name,
+                "quantity": purchase_item.quantity,
+                "price": purchase_item.price,
+                "total": item_total,
+            })
+            total_amount += item_total
+    
+        logo_url = request.build_absolute_uri(static('/images/youngsta_logo.png'))
+        html_string = render_to_string('activities/credit-note/credit_note.html', {
+            'credit_note': credit_note,
+            "logo_url":logo_url,
+            "purchase_items":purchase_items,
+            "total_amount":total_amount,
+        })
+        
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename={credit_note.credit_note_number}.pdf' 
+
+        pdf = BytesIO()
+        pisa_status = pisa.CreatePDF(html_string, dest=pdf)
+
+        if pisa_status.err:
+            return HttpResponse('Error generating PDF', status=500)
+    
+        response.write(pdf.getvalue())
+        return response
+    else:
+        return HttpResponse('Credit not found', status=404)

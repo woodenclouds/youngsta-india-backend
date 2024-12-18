@@ -72,5 +72,16 @@ urlpatterns = [
     re_path(r"^sources-list/$", views.order_source_list, name="order-sources-list"),
     re_path(r"^admin-create-orders/$", views.admin_create_orders, name="admin-create-orders"),
     re_path(r'^download-invoice/(?P<pk>.*)/$', views.download_invoice, name="download-invoice"),
+    
+    # financial years
+    re_path(r"^admin/financial-year/$", views.get_financial_years, name="get-financial-year"),
+    re_path(r"^admin/financial-year/create/$", views.create_financial_year, name="create-financial-year"),
+    re_path(r"^admin/financial-year/(?P<pk>.*)/delete/$", views.delete_financial_year_status, name="delete-financial-year"),
+    re_path(r"^admin/financial-year/(?P<pk>.*)/change-status/$", views.update_financial_year_status, name="update-financial-year-status"),
 
+    # credit note
+    re_path(r"^admin/credit-notes/$", views.get_credit_notes, name="get-credit-notes"),
+    re_path(r"^admin/credit-notes/create/$", views.create_credit_note, name="create-credit-note"),
+    re_path(r"^admin/credit-notes/(?P<pk>.*)/download/$", views.download_credit_note, name="download-credit-note"),
+    
 ]
