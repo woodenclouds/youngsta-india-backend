@@ -1,3 +1,5 @@
+import json
+
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -10,6 +12,7 @@ from accounts.models import *
 from payments.models import *
 from .functions import *
 from django.shortcuts import get_object_or_404, redirect
+from api.v1.accounts.functions import send_otp_email
 
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -198,11 +201,13 @@ def handle_response(request):
             "x-client-secret": settings.CASHFREE_SECRET,
         }
         order_status_response = requests.get(request_url, headers=headers)
-        print(order_status_response.json())
+        # print(order_status_response.json())
+        send_otp_email("safwan.woodenclouds@gmail.com",str(order_status_response.json()))
         if order_status_response.status_code == 200:
             order_status = order_status_response.json()
             # user = request.user
             user_profile = UserProfile.objects.get(user=purchase.user)
+            send_otp_email("safwan.woodenclouds@gmail.com",str(order_status))
             if order_status["order_status"] == "ACTIVE":
                 purchase.status = "Pending"
                 purchase.is_deleted = False

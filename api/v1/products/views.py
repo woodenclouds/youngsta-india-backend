@@ -1377,6 +1377,30 @@ def get_sub_categories(sub_categories):
     return products
 
 
+# from django.db.models import Q
+
+def get_products_by_category_name(category_name):
+    # Fetch the category
+    category = Category.objects.filter(name=category_name).first()
+    if not category:
+        return Product.objects.none()  # No products if category doesn't exist
+
+    # Fetch all related subcategories (including nested ones)
+    def get_all_subcategories(subcategories):
+        children = SubCategory.objects.filter(parent__in=subcategories)
+        if children.exists():
+            return subcategories | get_all_subcategories(children)
+        return subcategories
+
+    top_level_subcategories = SubCategory.objects.filter(category=category)
+    all_subcategories = get_all_subcategories(top_level_subcategories)
+
+    # Filter products by subcategories
+    products = Product.objects.filter(sub_category__in=all_subcategories)
+    return products
+
+
+
 @api_view(["GET"])
 @permission_classes((AllowAny,))
 def viewProduct(request):
@@ -1384,6 +1408,7 @@ def viewProduct(request):
         search_query = request.GET.get("search", "")
         tags = request.GET.get("tags", "")
         category_name = request.GET.get("category", "")
+        price_range = request.GET.get("price", "")
 
         query = Product.objects.all()
 
@@ -1401,22 +1426,44 @@ def viewProduct(request):
             query = query.annotate(num_purchases=Count("purchaseitems"))
         elif tags == "flash-sale-products":
             query = query.filter(flash_sale=True)
+        
+        if price_range:
+            price_range = price_range.split("-")
+            min_price = float(price_range[0])
+            max_price = float(price_range[1] if price_range[1] else 1000000)
+            query = query.filter(price__gte=min_price, price__lte=max_price)
+            
+        # if category_name:
+        #     category = Category.objects.get(name=category_name)
+        #     sub_categories = SubCategory.objects.filter(category=category)
+        #     sub_category_ids = sub_categories.values_list("id", flat=True)
+        #     inner_sub_categories = SubCategory.objects.filter(
+        #         parent__in=sub_category_ids
+        #     )
+        #     inner_sub_category_ids = inner_sub_categories.values_list("id", flat=True)
+        #     query = query.filter(
+        #         Q(sub_category__in=sub_category_ids)
+        #         | Q(sub_category__in=inner_sub_category_ids)
+        #     )
+            
         if category_name:
             category_name = category_name.replace("-", " ")
-            try:
-                category = Category.objects.get(Q(name=category_name))
-                subcategories = SubCategory.objects.filter(category=category)
-                if query.filter(sub_category__in=subcategories).exists():
-                    query = query.filter(sub_category__in=subcategories)
-                else:
-                    query = get_sub_categories(subcategories)
-            except Category.DoesNotExist:
-                subcategory = SubCategory.objects.filter(name=category_name).first()
-                if subcategory:
-                    if query.filter(sub_category=subcategory).exists():
-                        query = query.filter(sub_category=subcategory)
-                    else:
-                        query = get_sub_categories([subcategory])
+            query = get_products_by_category_name(category_name)
+            # try:
+            #     category = Category.objects.get(Q(name__icontains=category_name))
+            #     print(category,"categoryyyyy")
+            #     subcategories = SubCategory.objects.filter(category=category).values_list("id",flat=True)
+            #     if query.filter(sub_category__in=subcategories).exists():
+            #         query = query.filter(sub_category__in=subcategories)
+            #     else:
+            #         query = get_sub_categories(subcategories)
+            # except Category.DoesNotExist:
+            #     subcategory = SubCategory.objects.filter(name__icontains=category_name).first()
+            #     if subcategory:
+            #         if query.filter(sub_category=subcategory).exists():
+            #             query = query.filter(sub_category=subcategory)
+            #         else:
+            #             query = get_sub_categories([subcategory])
                 # else:
                 #     query = Product.objects.none()
         

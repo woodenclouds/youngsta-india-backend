@@ -1307,29 +1307,40 @@ def admin_create_orders(request):
             source = request.data["source"]
             product_data = request.data.get('products', [])
 
-            if User.objects.filter(username=email).exists():
-                response_data = {
-                    "StatusCode": 6001,
-                    "data": {"message": "Email already exists."}
-                }
-                return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
+            # if User.objects.filter(username=email).exists():
+            #     response_data = {
+            #         "StatusCode": 6001,
+            #         "data": {"message": "Email already exists."}
+            #     }
+            #     return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
 
             source_obj= Sources.objects.get(id=source)
 
             if email:
                 # email = request.data["email"]
                 # password = request.data["password"]
-                user = User.objects.create_user(username=email, password="testpassword")
-                enc_password = encrypt(email)
+                profile = None
+                user = None
+                
+                if User.objects.filter(username=email).exists():    
+                    user = User.objects.get(username=email)
+                    
+                    if UserProfile.objects.filter(user=user).exists():
+                        profile = UserProfile.objects.get(user=user)
+                else:
+                    user = User.objects.create_user(username=email, password=email)
+                    
+                if not profile:
+                    enc_password = encrypt(email)
 
-                profile = UserProfile.objects.create(
-                    user=user,
-                    first_name=customer_name,
-                    email=email,
-                    password=enc_password,
-                    phone_number = phone,
-                    user_type = "manual",
-                )
+                    profile = UserProfile.objects.create(
+                        user=user,
+                        first_name=customer_name,
+                        email=email,
+                        password=enc_password,
+                        phone_number = phone,
+                        user_type = "manual",
+                    )
             
                 address = Address.objects.create(user=profile, 
                     first_name=customer_name,

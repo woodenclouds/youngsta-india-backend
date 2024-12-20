@@ -154,14 +154,14 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
 
 
     def get_category(self, instance):
-        if instance.sub_category:
+        if instance.sub_category and instance.sub_category.category:
             category = instance.sub_category.category.name
         else:
             category = ""
         return category
     
     def get_category_id(self, instance):
-        if instance.sub_category:
+        if instance.sub_category and instance.sub_category.category:
             return instance.sub_category.category.id
         return None
 
@@ -356,21 +356,25 @@ class ProductAttributeDescriptionSerializer(serializers.ModelSerializer):
     value = serializers.SerializerMethodField()
     attributeDescription = serializers.SerializerMethodField()
     attributeDescription_name = serializers.SerializerMethodField()
+    attribute_type = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductAttribute
-        fields = ("id", "value", "quantity","attributeDescription","attributeDescription_name")
+        fields = ("id", "value", "quantity","attributeDescription","attributeDescription_name","attribute_type")
 
     def get_value(self, instance):
         value = instance.attribute_description.value
         return value
     
     def get_attributeDescription(self, instance):
-        value = instance.attribute_description.id
+        value = instance.attribute_description.id if instance.attribute_description else None
         return value
     def get_attributeDescription_name(self, instance):
         value = instance.attribute_description.attribute_type.name
         return value
+    
+    def get_attribute_type(self,instance):
+        return instance.attribute_description.attribute_type.id if instance.attribute_description else None
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -409,6 +413,7 @@ class ProductViewSerializer(serializers.ModelSerializer):
 
     def get_attribute(self, instance):
         attributes = ProductAttribute.objects.filter(product=instance, quantity__gt=0)
+        
         serialized = ProductAttributeDescriptionSerializer(
             attributes,
             many=True,

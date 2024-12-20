@@ -372,6 +372,7 @@ def admin_login(request):
         if serializer.is_valid():
             email = request.data["email"]
             password = request.data["password"]
+            print(email,password)
             print(User.objects.filter(username=email).exists())
             print(User.objects.get(username=email).check_password(password))
             user = authenticate(request, username=email, password=password)
