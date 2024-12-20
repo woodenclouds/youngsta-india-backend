@@ -770,8 +770,8 @@ def purchase_success(request, pk):
             status="Pending",
             description="Payment completed and preparing to for shipping",
         )
-        transaction = Transaction.objects.create()
-        transaction.commit()
+        # transaction = Transaction.objects.create()
+        # transaction.commit()
         response_data = {
             "StatusCode": 6000,
             "data": {
