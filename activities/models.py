@@ -380,6 +380,9 @@ class CreditNote(BaseModel):
 
     @staticmethod
     def get_financial_year():
+        if FinancialYear.objects.filter(status="active").exists():
+            financial_year = FinancialYear.objects.filter(status="active").first().year
+            return f"{financial_year.split('-')[0][2:]}{financial_year.split('-')[1][2:]}"
         current_year = date.today().year
         current_month = date.today().month
         if current_month < 4:

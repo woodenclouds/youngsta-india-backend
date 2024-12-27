@@ -1367,11 +1367,16 @@ def admin_create_orders(request):
                     user=user,
                     total_amount = 0,
                     invoice_no = invoice_number,
-                    status = "pending",
+                    status = "Accepted",
                     address = address,
                     method =method,
                     source = source_obj,
                 )
+            
+            PurchaseLog.objects.create(
+                Purchases=purchase,
+                log_status="Accepted"
+            )
             
 
             for item_data in product_data:

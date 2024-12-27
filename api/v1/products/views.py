@@ -1426,12 +1426,6 @@ def viewProduct(request):
             query = query.annotate(num_purchases=Count("purchaseitems"))
         elif tags == "flash-sale-products":
             query = query.filter(flash_sale=True)
-        
-        if price_range:
-            price_range = price_range.split("-")
-            min_price = float(price_range[0])
-            max_price = float(price_range[1] if price_range[1] else 1000000)
-            query = query.filter(price__gte=min_price, price__lte=max_price)
             
         # if category_name:
         #     category = Category.objects.get(name=category_name)
@@ -1469,8 +1463,15 @@ def viewProduct(request):
         
         if isinstance(query, QuerySet):
             query = query.order_by("name")
+            
+            if price_range:
+                price_range = price_range.split("-")
+                min_price = float(price_range[0])
+                max_price = float(price_range[1] if price_range[1] else 1000000)
+                query = query.filter(price__gte=min_price, price__lte=max_price)
         else:
             query.sort(key=lambda x: x.name)
+            
 
         # if all(isinstance(item, Product) for item in query):
         #     query = query.distinct()

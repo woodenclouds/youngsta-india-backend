@@ -494,7 +494,6 @@ class CreateCreditNoteSerializer(serializers.Serializer):
     )
     
     def create(self, validated_data):
-        print(validated_data)
         financial_year = FinancialYear.objects.get(pk=validated_data.get("financial_year_id"))
         purchase = Purchase.objects.get(pk=validated_data.get("purchase_id"))
         
