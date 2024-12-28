@@ -339,6 +339,7 @@ class TransactionListSerializer(serializers.ModelSerializer):
 
 class PurchaseItemSerializer(serializers.ModelSerializer):
     product_details = serializers.SerializerMethodField()
+    price = serializers.SerializerMethodField()
     # order_data = serializers.SerializerMethodField()
 
     class Meta:
@@ -358,6 +359,9 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
             product_detail["thumbnail"] = thumbnail.image
     
         return product_detail
+    
+    def get_price(self, instance):
+        return float(instance.product.selling_price) * float(instance.quantity)
 
     # def get_order_data(self,instance):
     #     try:
