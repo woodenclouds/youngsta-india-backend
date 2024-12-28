@@ -1,7 +1,7 @@
 from django.db import models
 from main.models import *
 from datetime import date
-from activities.functions import generate_invoice_number
+from activities.models import Purchase
 
 
 class Wallet(BaseModel):
@@ -42,6 +42,7 @@ class Transaction(BaseModel):
     transaction_description = models.CharField(max_length=155, blank=True, null=True)
     success = models.BooleanField(default=False)
     credit = models.BooleanField(default=True, blank=True, null=True)
+    purchase = models.ForeignKey(Purchase, null=True, blank=True, on_delete=models.CASCADE,related_name="transactions")
     class Meta:
         db_table = "payment_transaction"
         managed = True

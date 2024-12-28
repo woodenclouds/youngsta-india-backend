@@ -511,6 +511,15 @@ class CreateCreditNoteSerializer(serializers.Serializer):
             ).aggregate(
                 total_price_sum=Sum('total')
             )
+            
+            if Transaction.objects.filter(purchase=purchase,is_deleted=False).exists():
+                transaction = Transaction.objects.filter(purchase=purchase,is_deleted=False).latest("created_at")
+                transaction.amount = float(transaction.amount if transaction.amount else 0) - float(total_price.get("total_price_sum",0))
+                transaction.save()
+                
+                purchase.total_amount = transaction.amount
+                purchase.save()
+
             credit_note.amount = total_price.get("total_price_sum")
             credit_note.save()
             PurchaseItems.objects.filter(pk__in=cancelled_items,is_deleted=False).update(credit_note=credit_note,is_returned=True)

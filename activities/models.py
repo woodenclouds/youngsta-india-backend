@@ -222,6 +222,7 @@ class Purchase(BaseModel):
         total = sum(item.price * item.quantity for item in self.purchase_items.all())
         self.total_amount = total
         self.save()
+        return total
 
     def save(self, *args, **kwargs):
         import random

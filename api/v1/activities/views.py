@@ -1390,15 +1390,25 @@ def admin_create_orders(request):
                     quantity = item_data.get('quantity'),
                     # price = item_data.get('unitPrice'),                                  
                 )
-            purchase.update_total_amount()
+            total_amount = purchase.update_total_amount()
             current_time = datetime.datetime.now().date()
             invoice = Invoice.objects.create(
                     invoice_no = invoice_number,
                     issued_at = current_time,
                     customer_name = customer_name,
-                    total_amount = 0,
+                    total_amount = total_amount,
                     purchase = purchase,
                 )
+
+            # create transaction object
+            transaction = Transaction.objects.create(
+                user=profile,
+                amount=total_amount,
+                success=True,
+                credit=True,
+                purchase=purchase,
+                transaction_type=method,
+            )            
            
             response_data = {
                 "StatusCode": 6000,
