@@ -32,6 +32,11 @@ urlpatterns = [
     re_path(
         r"^edit_cart_item/(?P<pk>.*)/$", views.edit_cart_item, name="edit_cart_item"
     ),
+    
+    # track shipment 
+    re_path(r"^orders/track/(?P<shipment_id>.*)/$", views.track_order_by_shipment_id, name="track_order_by_shipment_id"),
+    
+    
     re_path(r"^view_cart_items/$", views.get_cart, name="view_cart_items"),
     re_path(r"^orders/$", views.orders, name="orders"),
     re_path(r"^orders-details/(?P<pk>.*)/$", views.orders_details, name="orders"),

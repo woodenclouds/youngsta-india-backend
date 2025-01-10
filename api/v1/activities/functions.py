@@ -32,7 +32,7 @@ def generateAccessShiprocket():
         return None
     
 
-def createOrder(purchase):
+def createOrder(purchase:Purchase):
     api = "https://apiv2.shiprocket.in/v1/external/orders/create/adhoc"
     headers = {
         'Authorization': f'Bearer {generateAccessShiprocket()}',
@@ -64,7 +64,7 @@ def createOrder(purchase):
 
         item = {
             "name": product.name,
-            "sku": "SKU123Fg",  # Replace with actual SKU if available
+            "sku": product.product_sku if product.product_sku else "SKU123Fg" ,  # Replace with actual SKU if available
             "units": quantity,
             "selling_price": float(product.selling_price),
         }
@@ -74,6 +74,7 @@ def createOrder(purchase):
         "order_id": str(purchase.id),  # Convert UUID to string
         "order_date": purchase.created_at.isoformat(),  # Convert datetime to string
         "billing_customer_name": f"{address.first_name} {address.last_name}",
+        "billing_last_name": f"{address.last_name}",
         "billing_address": address.address,
         "billing_city": address.city,
         "billing_pincode": address.post_code,
@@ -97,6 +98,11 @@ def createOrder(purchase):
     response = requests.post(api, headers=headers, json=payload)
     if response.status_code == 200:
         order_response = response.json()
+        
+        purchase.SR_order_id = order_response.get('order_id')
+        purchase.SR_shipment_id = order_response.get('shipment_id')
+        purchase.save()
+        
         bill_api = "https://apiv2.shiprocket.in/v1/external/orders/print/invoice"
         headers = {
             'Authorization': f'Bearer {generateAccessShiprocket()}',
@@ -105,15 +111,18 @@ def createOrder(purchase):
         payload = {
             "ids": [order_response["order_id"]],
         }
-        bill_response = requests.post(api, headers=headers, json=payload)
+        bill_response = requests.post(bill_api, headers=headers, json=payload)
         print(bill_response,"____bill response")
         
         print(f"Order created successfully: {order_response}")
-        return order_response
+        return {
+            "bill_response":bill_response,
+            "order_response":order_response,
+        }
     else:
         print(f"Failed to create order. Status code: {response.status_code}")
         print(f"Response: {response.text}")
-        return None
+        return response.text
 
 
 def getServiceAvailability(cart, pin_code):
@@ -245,3 +254,19 @@ def get_invoice_data(pk):
     return invoice_data
 
     
+
+def getTrackingDetailsByShipmentID(shipmentId):
+    api = f"https://apiv2.shiprocket.in/v1/external/courier/track/shipment/{shipmentId}"
+    token = generateAccessShiprocket()
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.get(api, headers=headers)
+        response_data = response.json()
+            
+        return response_data
+    except Exception as e:
+        return e

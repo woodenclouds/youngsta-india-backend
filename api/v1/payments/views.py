@@ -14,8 +14,26 @@ from .functions import *
 from django.shortcuts import get_object_or_404, redirect
 from api.v1.accounts.functions import send_otp_email
 
+from cashfree_pg.models.create_order_request import CreateOrderRequest
+from cashfree_pg.api_client import Cashfree
+from cashfree_pg.models.customer_details import CustomerDetails
+
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
+
+Cashfree.XClientId = settings.CASHFREE_APP_ID
+Cashfree.XClientSecret = settings.CASHFREE_SECRET
+Cashfree.XEnvironment = Cashfree.XSandbox
+x_api_version = "2023-08-01"
+
+def create_cashfree_order():
+    customerDetails = CustomerDetails(customer_id="123", customer_phone="9999999999")
+    createOrderRequest = CreateOrderRequest(order_amount=1, order_currency="INR", customer_details=customerDetails)
+    try:
+        api_response = Cashfree().PGCreateOrder(x_api_version, createOrderRequest, None, None)
+        return api_response.data
+    except Exception as e:
+        return str(e)
 
 
 # def create_checkout_session(
@@ -128,7 +146,7 @@ def create_order(request):
                                 referral_amount = item.product.referal_Amount,
                                 order = purchase,
                                 is_paid = False
-                            )
+                            ) 
                             wallet = Wallet.objects.get(user=user_refered)
                             wallet.balance += item.product.referal_Amount
                             wallet.save()
@@ -142,9 +160,17 @@ def create_order(request):
                     "instance": purchase,
                     "customer_profile": customer_profile,
                 }
-                cash_free_create_order_response, payment_link_status = create_cash_free_order(
+                cash_free_create_order_response, payment_link_status,headers = create_cash_free_order(
                     cash_free_args
                 )
+                # response = create_cashfree_order()
+                # response_data = {
+                #         "StatusCode": 6001,
+                #         "data": {
+                #             "title": "An error occurred",
+                #             "status_code": response
+                #         },
+                #     }
                 if cash_free_create_order_response.status_code == 200 and payment_link_status:
                     cash_free_create_order_response = cash_free_create_order_response.json()
 
@@ -165,6 +191,7 @@ def create_order(request):
                         "data": {
                             "title": "An error occurred",
                             "status_code": cash_free_create_order_response,
+                            "headers":headers
                         },
                     }
             else:
@@ -193,7 +220,7 @@ def handle_response(request):
     purchase_id = request.GET.get("pk")
     if Purchase.objects.filter(pk=purchase_id).exists():
         purchase = Purchase.objects.get(pk=purchase_id)
-        request_url = f"{settings.CASH_FREE_END_POINT}orders/{purchase.id}"
+        request_url = f"{settings.CASH_FREE_END_POINT}/orders/{purchase.id}"
         headers = {
             "accept": "application/json",
             "x-api-version": "2023-08-01",
@@ -217,6 +244,15 @@ def handle_response(request):
                     attribute = item.attribute
                     attribute.quantity -= item.quantity
                     attribute.save()
+                    
+                current_time = datetime.datetime.now().date()
+                invoice = Invoice.objects.create(
+                    invoice_no = "",
+                    issued_at = current_time,
+                    customer_name = f"{user_profile.first_name} {user_profile.last_name}",
+                    total_amount = purchase.total_amount,
+                    purchase = purchase,
+                )
                 purchase_log = PurchaseLog.objects.create(
                     Purchases=purchase,
                     log_status = "Pending"
@@ -239,7 +275,7 @@ def handle_response(request):
                 url = f"https://youngsta.in/my-account/orders?action={order_status.get('order_status')}"
                 return redirect(url)
         else:
-            url = f"https://youngsta.in/my-account/orders?action={order_status_response.status_code}"
+            url = f"https://youngsta.in/my-account/orders?action={order_status_response.status_code}&url{request_url}"
             return redirect(url)
     else:
         url = f"https://youngsta.in/my-account/orders?action={purchase_id}"

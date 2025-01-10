@@ -165,6 +165,7 @@ def add_to_cart(request, pk):
         user = request.user
         attribute_id = request.data["attribute_id"]
         quantity = request.data["quantity"]
+        referral_code = request.data.get("referral_code")
         if attribute_id:
             if ProductAttribute.objects.filter(pk=attribute_id).exists():
                 if Product.objects.filter(pk=pk).exists():
@@ -189,6 +190,10 @@ def add_to_cart(request, pk):
                             quantity=Decimal(quantity),
                             price=product.selling_price * Decimal(quantity),
                         )
+                        if referral_code:
+                            cart_item.referral_code = referral_code
+                            cart_item.save()
+                            
                         cart.product_total += cart_item.price
                         cart.save()
                         response_data = {
@@ -1029,8 +1034,9 @@ def add_purchase_log(request, pk):
         )
         purchase.status = status_id
         purchase.save()
+        create_order = None
         if status_id == "Accepted":
-            token = generateAccessShiprocket()
+            # token = generateAccessShiprocket()
             create_order = createOrder(purchase)
         response_data = {
             "StatusCode": 6000,
@@ -1661,6 +1667,8 @@ def view_oder_detail(request, pk):
                 "order_data": purchase.created_at,
                 "products": serialized,
                 "address": address,
+                "shipment_id": purchase.SR_shipment_id,
+                "order_id": purchase.SR_order_id,
             },
         }
     else:
@@ -2173,3 +2181,35 @@ def download_credit_note(request, pk):
         return response
     else:
         return HttpResponse('Credit not found', status=404)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def track_order_by_shipment_id(request,shipment_id):
+    
+    try:        
+        if Purchase.objects.filter(SR_shipment_id=shipment_id,user=request.user).exists():
+            response = getTrackingDetailsByShipmentID(shipment_id)
+            response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "data": response,
+                }
+            }
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "title": "Invalid request",
+                    "message": "Purchase Not Found",
+                }
+            }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)

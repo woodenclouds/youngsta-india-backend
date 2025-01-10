@@ -157,7 +157,7 @@ class Cart(BaseModel):
     total_amount = models.PositiveBigIntegerField( blank=True, null=True)
     coupen_offer = models.PositiveBigIntegerField( blank=True, null=True)
     coupon_code = models.CharField(max_length=155, blank=True, null=True)
-    product_total = models.PositiveBigIntegerField( blank=True, null=True)
+    product_total = models.PositiveBigIntegerField( blank=True, null=True,default=0)
     
     def __str__(self):
         return f"Cart for {self.user.username}"
@@ -213,6 +213,9 @@ class Purchase(BaseModel):
     invoice_no = models.CharField(max_length=128, blank=True, null=True)
     method = models.CharField(choices=PAYMENT_METHOD, blank=True, null=True,max_length=255)
     source = models.ForeignKey(Sources, on_delete=models.CASCADE, blank=True, null=True)
+    # shiprocket fields
+    SR_shipment_id = models.CharField(max_length=255,null=True, blank=True)
+    SR_order_id = models.CharField(max_length=255,null=True, blank=True)
   
 
     def __str__(self):
