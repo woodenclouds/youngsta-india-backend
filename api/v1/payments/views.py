@@ -190,7 +190,7 @@ def create_order(request):
                         "StatusCode": 6001,
                         "data": {
                             "title": "An error occurred",
-                            "status_code": cash_free_create_order_response,
+                            "status_code": cash_free_create_order_response.json(),
                             "headers":headers
                         },
                     }
