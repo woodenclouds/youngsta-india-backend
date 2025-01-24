@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework import status
 from rest_framework.response import Response
-from django.db.models.functions import TruncDay, TruncMonth
+from django.db.models.functions import TruncDay, TruncMonth, TruncHour
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
@@ -868,41 +868,55 @@ def view_oders(request):
 
 @api_view(["GET"])
 def weekly_purchase(request):
-    filter_by = request.GET.get("filter_by","this_month")
+    filter_by = request.GET.get("filter_by","today")
     
     labels = []
     data = []
+    purchases = Purchase.objects.filter(is_deleted=False)
     
-    if filter_by == "last_week":
-        daily_data = (
-            Purchase.objects.annotate(day_start=TruncDay("created_at"))
+    if filter_by == "today":
+        purchases = (
+            Purchase.objects.filter(created_at__date=timezone.now().date()).annotate(hour_start=TruncHour("created_at"))
+            .values("hour_start")
+            .annotate(total_amount=Sum("total_amount"))
+            .order_by("hour_start")
+        )
+
+        labels = [hour["hour_start"].strftime("%H") for hour in purchases]
+        data = [hour["total_amount"] for hour in purchases]
+    elif filter_by == "last_week":
+        seven_days_ago = timezone.now() - timedelta(days=7)
+        purchases = (
+            Purchase.objects.filter(created_at__gte=seven_days_ago).annotate(day_start=TruncDay("created_at"))
             .values("day_start")
             .annotate(total_amount=Sum("total_amount"))
             .order_by("day_start")
         )
 
-        labels = [day["day_start"].strftime("%Y-%m-%d") for day in daily_data]
-        data = [day["total_amount"] for day in daily_data]
+        labels = [day["day_start"].strftime("%Y-%m-%d") for day in purchases]
+        data = [day["total_amount"] for day in purchases]
     elif filter_by == "this_month":
-        weekly_data = (
-            Purchase.objects.annotate(week_start=TruncWeek("created_at"))
+        today = timezone.now()
+        first_day_of_month = today.replace(day=1)
+        purchases = (
+            Purchase.objects.filter(created_at__gte=first_day_of_month, created_at__lt=today).annotate(week_start=TruncWeek("created_at"))
             .values("week_start")
             .annotate(total_amount=Sum("total_amount"))
             .order_by("week_start")
         )
 
-        labels = [week["week_start"].strftime("%Y-%m-%d") for week in weekly_data]
-        data = [week["total_amount"] for week in weekly_data]
+        labels = [week["week_start"].strftime("%Y-%m-%d") for week in purchases]
+        data = [week["total_amount"] for week in purchases]
     elif filter_by == "this_year":
-        monthly_data = (
-            Purchase.objects.annotate(month_start=TruncMonth("created_at"))
+        purchases = (
+            Purchase.objects.filter(created_at__year=timezone.now().year).annotate(month_start=TruncMonth("created_at"))
             .values("month_start")
             .annotate(total_amount=Sum("total_amount"))
             .order_by("month_start")
         )
 
-        labels = [month["month_start"].strftime("%Y-%m-%d") for month in monthly_data]
-        data = [month["total_amount"] for month in monthly_data]
+        labels = [month["month_start"].strftime("%Y-%m-%d") for month in purchases]
+        data = [month["total_amount"] for month in purchases]
 
     response_data = {
         "StatusCode": 6000,
