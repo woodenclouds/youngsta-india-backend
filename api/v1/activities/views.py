@@ -23,7 +23,7 @@ from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
 from django.contrib.auth import authenticate
 from django.db.models import Sum
-from django.db.models.functions import TruncWeek
+from django.db.models.functions import TruncWeek,TruncMonth
 from accounts.models import *
 from datetime import datetime, timedelta
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -868,26 +868,47 @@ def view_oders(request):
 
 @api_view(["GET"])
 def weekly_purchase(request):
-    weekly_data = (
-        Purchase.objects.annotate(week_start=TruncWeek("created_at"))
-        .values("week_start")
-        .annotate(total_amount=Sum("total_amount"))
-        .order_by("week_start")
-    )
+    filter_by = request.GET.get("filter_by","this_month")
+    
+    labels = []
+    data = []
+    
+    if filter_by == "last_week":
+        daily_data = (
+            Purchase.objects.annotate(day_start=TruncDay("created_at"))
+            .values("day_start")
+            .annotate(total_amount=Sum("total_amount"))
+            .order_by("day_start")
+        )
 
-    labels = [week["week_start"].strftime("%Y-%m-%d") for week in weekly_data]
-    data = [week["total_amount"] for week in weekly_data]
+        labels = [day["day_start"].strftime("%Y-%m-%d") for day in daily_data]
+        data = [day["total_amount"] for day in daily_data]
+    elif filter_by == "this_month":
+        weekly_data = (
+            Purchase.objects.annotate(week_start=TruncWeek("created_at"))
+            .values("week_start")
+            .annotate(total_amount=Sum("total_amount"))
+            .order_by("week_start")
+        )
 
-    purchases = Purchase.objects.values(
-        "id", "user", "address", "total_amount", "status", "purchase_items"
-    )
+        labels = [week["week_start"].strftime("%Y-%m-%d") for week in weekly_data]
+        data = [week["total_amount"] for week in weekly_data]
+    elif filter_by == "this_year":
+        monthly_data = (
+            Purchase.objects.annotate(month_start=TruncMonth("created_at"))
+            .values("month_start")
+            .annotate(total_amount=Sum("total_amount"))
+            .order_by("month_start")
+        )
+
+        labels = [month["month_start"].strftime("%Y-%m-%d") for month in monthly_data]
+        data = [month["total_amount"] for month in monthly_data]
 
     response_data = {
         "StatusCode": 6000,
         "data": {
             "labels": labels,
             "data": data,
-            "purchases": purchases,  # Add this line to include purchase data
         },
     }
 
