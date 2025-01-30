@@ -129,7 +129,7 @@ def create_order(request):
                     is_deleted = True
                 )
                 for item in cart_items:
-                    purchase_item = PurchaseItems.objects.create(
+                    PurchaseItems.objects.create(
                         purchase=purchase,
                         product=item.product,
                         quantity=item.quantity,
@@ -139,7 +139,7 @@ def create_order(request):
                     if item.referral_code:
                         if  UserProfile.objects.filter(refferal_code=item.referral_code).exists():
                             user_refered = UserProfile.objects.get(refferal_code=item.referral_code)
-                            refferal_instance = Referral.objects.create(
+                            Referral.objects.create(
                                 product = item.product,
                                 referred_by = user_refered.user,
                                 referred_to = customer_profile.user,
@@ -229,7 +229,7 @@ def handle_response(request):
         }
         order_status_response = requests.get(request_url, headers=headers)
         # print(order_status_response.json())
-        send_otp_email("safwan.woodenclouds@gmail.com",str(order_status_response.json()))
+        # send_otp_email("safwan.woodenclouds@gmail.com",str(order_status_response.json()))
         if order_status_response.status_code == 200:
             order_status = order_status_response.json()
             # user = request.user
@@ -240,6 +240,7 @@ def handle_response(request):
                 purchase.is_deleted = False
                 purchase.save()
                 purchase_item = PurchaseItems.objects.filter(purchase=purchase)
+                # referrals
                 for item in purchase_item:
                     attribute = item.attribute
                     attribute.quantity -= item.quantity
@@ -272,11 +273,11 @@ def handle_response(request):
                 url = "https://youngsta.in/my-account/orders?action=payment_success"
                 return redirect(url)
             else:
-                url = f"https://youngsta.in/my-account/orders?action={order_status.get('order_status')}"
+                url = f"https://youngsta.in/my-account/orders?action=payment_failed"
                 return redirect(url)
         else:
-            url = f"https://youngsta.in/my-account/orders?action={order_status_response.status_code}&url{request_url}"
+            url = f"https://youngsta.in/my-account/orders?action=payment_failed"
             return redirect(url)
     else:
-        url = f"https://youngsta.in/my-account/orders?action={purchase_id}"
+        url = f"https://youngsta.in/my-account/orders?action=payment_failed"
         return redirect(url)

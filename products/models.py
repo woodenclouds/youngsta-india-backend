@@ -273,6 +273,7 @@ class ProductAttribute(BaseModel):
         AttributeDescription, on_delete=models.CASCADE, blank=True, null=True
     )
     quantity = models.IntegerField()
+    sku = models.CharField(max_length=128,null=True,blank=True)
 
     class Meta:
         db_table = "product_attribute"
@@ -286,7 +287,7 @@ class ProductAttribute(BaseModel):
 
 class ProductItem(BaseModel):
     product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="product"
+        Product, on_delete=models.CASCADE, related_name="product" 
     )
     color = models.CharField(max_length=8, blank=True, null=True)
     stock = models.PositiveIntegerField(default=0, blank=True, null=True)

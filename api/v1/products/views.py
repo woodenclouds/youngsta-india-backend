@@ -1997,6 +1997,7 @@ def addProductNew(request):
                             product=product,
                             attribute_description=attribute_description,
                             quantity=attribute.get("quantity", 0),
+                            sku=attribute.get("sku")
                         )
                     for image in images:
                         product_image = ProductImages.objects.create(
