@@ -1468,7 +1468,7 @@ def viewProduct(request):
                 price_range = price_range.split("-")
                 min_price = float(price_range[0])
                 max_price = float(price_range[1] if price_range[1] else 1000000)
-                query = query.filter(price__gte=min_price, price__lte=max_price)
+                query = query.filter(selling_price__gte=min_price, selling_price__lte=max_price)
         else:
             query.sort(key=lambda x: x.name)
             
@@ -1989,7 +1989,7 @@ def addProductNew(request):
                     )
                     # serialized.save()
                     for attribute in attributes:
-                        print(attribute, "")
+                                       
                         attribute_description = AttributeDescription.objects.get(
                             pk=attribute.get("attributeDescription")
                         )
@@ -1997,7 +1997,9 @@ def addProductNew(request):
                             product=product,
                             attribute_description=attribute_description,
                             quantity=attribute.get("quantity", 0),
-                            sku=attribute.get("sku")
+                            sku=attribute.get("sku"),
+                            barcode=attribute.get("barcode"),
+                            price=attribute.get("price"),
                         )
                     for image in images:
                         product_image = ProductImages.objects.create(
@@ -2057,6 +2059,7 @@ def addProductNew(request):
 @api_view(["POST"])
 def editProduct(request):
     try:
+        print(request.data)
         id = request.data["id"]
         if Product.objects.filter(pk=id).exists():
             product = Product.objects.get(pk=id)
@@ -2090,11 +2093,20 @@ def editProduct(request):
                 try:
                     if AttributeDescription.objects.filter(pk=attribute["attributeDescription"]).exists():
                         attribute_description = AttributeDescription.objects.get(pk=attribute["attributeDescription"])
+                        print("attribute",attribute)
+                        print("attribute_description",attribute_description)
+                        print("=========================================================",)
+                        print("product",product,)
                         attribute_obj = ProductAttribute.objects.create(
                                 product=product,
                                 attribute_description=attribute_description,
-                                quantity=attribute["quantity"]
+                                quantity=attribute["quantity"],
+                                sku=attribute["sku"],
+                                barcode=attribute["barcode"],
+                                price=attribute["price"],
                             )
+                        print("hi")
+                        # print("attribute_obj",attribute_obj)
                 except Exception as e:
                     response_data = {
                         "StatusCode":6001,
