@@ -2105,8 +2105,8 @@ def editProduct(request):
                                 barcode=attribute["barcode"],
                                 price=attribute["price"],
                             )
-                        print("hi")
-                        # print("attribute_obj",attribute_obj)
+                    
+                        print("attribute_obj",attribute_obj)
                 except Exception as e:
                     response_data = {
                         "StatusCode":6001,
@@ -2355,22 +2355,23 @@ def inventory(request):
     try:
         type = request.GET.get("type")
         search = request.GET.get("search")
+
+        instances = ProductAttribute.objects.all()
+
         if type == "all":
-            instances = Product.objects.annotate(
-                total_quantity=Sum("productattribute__quantity")
-            )
+            instances = instances.annotate(total_quantity=Sum("quantity"))
         elif type == "out_of_stock":
-            instances = Product.objects.annotate(
-                total_quantity=Sum("productattribute__quantity")
-            ).filter(total_quantity=0)
+            instances = instances.filter(quantity=0)
         elif type == "low_stock":
-            instances = Product.objects.annotate(
-                total_quantity=Sum("productattribute__quantity")
-            ).filter(total_quantity__gt=0, total_quantity__lte=20)
-        else:
-            instances = Product.objects.all()
+            instances = instances.filter(quantity__gt=0, quantity__lte=20)
+        # else:
+        #     instances = ProductAttribute.objects.all()
+
         if search:
-            instances = instances.filter(name__icontains=search)
+            instances = instances.filter(product__name__icontains=search)
+
+        instances = instances.order_by('product')
+        
         paginator = Paginator(instances, 10)
         page = request.GET.get("page")
 
@@ -2436,20 +2437,36 @@ def view_stock(request, pk):
 
 
 @api_view(["POST"])
-def update_quantity(request):
+def update_quantity(request, pk):
     try:
-        datas = request.data.get("datas", [])
-        for data in datas:
-            product_attribute = get_object_or_404(ProductAttribute, pk=data["id"])
-            product_attribute.quantity = int(data["quantity"])
-            product_attribute.save()
-        
-        response_data = {
-            "status": 6000,
-            "data": {
-                "message": "Successfully changed"
-                },
-        }
+        product_attribute = ProductAttribute.objects.filter(id=pk).first()
+        stock = request.data.get("stock")
+        if product_attribute:
+            if stock is None or not str(stock).isdigit():
+                response_data = {
+                    "status": 6001,
+                    "data": {
+                        "message": "Stock must be a valid number."
+                    },
+                }
+                status_code = status.HTTP_400_BAD_REQUEST
+            else:
+                product_attribute.quantity = int(stock)           
+                product_attribute.save()
+                
+                response_data = {
+                    "status": 6000,
+                    "data": {
+                        "message": "Successfully changed"
+                        },
+                }
+        else:
+               response_data = {
+                "status": 6001,
+                "data": {
+                    "message": "Product attribute not found"
+                    },
+            }
         status_code = status.HTTP_200_OK
     except ProductAttribute.DoesNotExist:
         response_data = {
@@ -2466,6 +2483,8 @@ def update_quantity(request):
         status_code = status.HTTP_400_BAD_REQUEST
 
     return Response({"app_data": response_data}, status=status_code)
+
+
 
 
 @api_view(["POST"])

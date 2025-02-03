@@ -867,7 +867,7 @@ def view_oders(request):
 
 
 @api_view(["GET"])
-def weekly_purchase(request):
+def total_sales(request):
     filter_by = request.GET.get("filter_by","today")
     
     labels = []
@@ -1311,6 +1311,38 @@ def view_refferal(request):
             "message": str(e),
         }
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@group_required(["admin"])
+def best_selling_product(request):
+    try:
+      product_sales = PurchaseItems.objects.values('product', 'product__name') \
+        .annotate(purchase_count=Sum('quantity')) \
+        .order_by('-purchase_count')[:10]
+      if product_sales:
+        response_data = {
+                "StatusCode": 6000,
+                "data": {
+                    "product_sales":product_sales   
+                },
+            }
+      else:
+           response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message":"Purchase not found"   
+                },
+            }
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
 
 @api_view(["GET"])
 def user_orders(request):

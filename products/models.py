@@ -275,7 +275,7 @@ class ProductAttribute(BaseModel):
     quantity = models.IntegerField()
     sku = models.CharField(max_length=128,null=True,blank=True)
     barcode = models.TextField(blank=True, null=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    price = models.DecimalField(max_digits=10, decimal_places=2,null=True,blank=True)
     
     class Meta:
         db_table = "product_attribute"

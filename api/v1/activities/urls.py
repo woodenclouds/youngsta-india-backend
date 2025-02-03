@@ -24,6 +24,7 @@ urlpatterns = [
     re_path(r"^add_to_cart/(?P<pk>.*)/$", views.add_to_cart, name="add_to_cart"),
     re_path(r"^add-refferal/$", views.add_referral, name="add_refferal"),
     re_path(r"^apply-coupen/$", views.apply_coupen, name="apply_coupen"),
+    # re_path(r"^apply-wallet-amount/$", views.apply_wallet_amount, name="apply_wallet_amount"),
     re_path(
         r"^remove_from_cart/(?P<pk>.*)/$",
         views.remove_from_cart,
@@ -55,11 +56,12 @@ urlpatterns = [
     re_path(
         r"^update-all-refferal/$", views.update_all_refferal, name="update_all_refferal"
     ),
+    re_path(r"^admin/best-selling-product/$", views.best_selling_product, name="best_selling_product"),
     re_path(r"^user-orders/$", views.user_orders, name="user-orders"),
     re_path(r"^admin/orders/$", views.view_oders, name="view_oders"),
     re_path(r"^admin/orders/(?P<pk>.*)/$", views.view_oder_detail, name="view_oders"),
     re_path(r"^admin/transactions/$", views.view_accounts, name="view_accounts"),
-    re_path(r"^admin/purchase-graph/$", views.weekly_purchase, name="view_purchases"),
+    re_path(r"^admin/purchase-graph/$", views.total_sales, name="total_sales"),
     re_path(r"^admin/dashboard-data/$", views.order_stats, name="view_purchases"),
     re_path(r"^admin/product-count/$", views.product_count, name="product_count"),
     re_path(r"^admin/view-status/$", views.view_statusses, name="view_statusses"),

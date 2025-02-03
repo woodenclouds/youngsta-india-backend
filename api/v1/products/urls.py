@@ -155,7 +155,7 @@ urlpatterns = [
     ),
     re_path(r"^admin/inventory/$", views.inventory, name="inventory"),
     re_path(r"^admin/view-stock/(?P<pk>.*)/$", views.view_stock, name="inventory"),
-    re_path(r"^admin/update-quantity/$", views.update_quantity, name="update_quantity"),
+    re_path(r"^admin/update-quantity/(?P<pk>.*)/$", views.update_quantity, name="update_quantity"),
     re_path(
         r"^admin/attribute/(?P<pk>.*)/$",
         views.attribute_detail,

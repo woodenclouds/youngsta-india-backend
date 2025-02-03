@@ -112,7 +112,7 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
         )
 
     def get_stock(self, instance):
-        stock = ProductAttribute.objects.aggregate(total_stock=Sum("quantity"))
+        stock = ProductAttribute.objects.filter(product=instance).aggregate(total_stock=Sum("quantity"))
         return stock["total_stock"]
 
     def get_thumbnail(self, instance):
@@ -360,7 +360,7 @@ class ProductAttributeDescriptionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductAttribute
-        fields = ("id", "value", "quantity","attributeDescription","attributeDescription_name","attribute_type")
+        fields = ("id", "value", "quantity","attributeDescription","attributeDescription_name","attribute_type","sku","barcode","price")
 
     def get_value(self, instance):
         value = instance.attribute_description.value
@@ -612,24 +612,41 @@ class ProductWithCodeSerializer(serializers.ModelSerializer):
 
 class InventorySerializers(serializers.ModelSerializer):
     thumbnail = serializers.SerializerMethodField()
+    product_code = serializers.SerializerMethodField()
+    name = serializers.SerializerMethodField()
+    attribute_detail = serializers.SerializerMethodField()
     stock = serializers.SerializerMethodField()
 
     class Meta:
-        model = Product
-        fields = ("id", "name", "thumbnail", "stock", "product_code")
+        model = ProductAttribute
+        fields = ("id","name","attribute_detail","thumbnail","stock","product_code")
+
+    def get_name(slef, instance):
+        if instance.product:
+            return instance.product.name
+        
+    def get_stock(slef, instance):
+        if instance:
+            return instance.quantity
+        
+    def get_product_code(slef, instance):
+        if instance.product:
+            return instance.product.product_code
+        
+    def get_attribute_detail(self, instance):
+        if instance.attribute_description:
+            return {
+                "attribute_type":instance.attribute_description.attribute_type.name,
+                "value":instance.attribute_description.value
+            }
 
     def get_thumbnail(self, instance):
-        if ProductImages.objects.filter(product=instance, thumbnail=True).exists():
-            image = ProductImages.objects.filter(product=instance, thumbnail=True).latest("created_at")
-            return image.image
-        
-        return None
-
-    def get_stock(self, instance):
-        stock = ProductAttribute.objects.filter(product=instance).aggregate(
-            Sum("quantity")
-        )["quantity__sum"]
-        return stock
+        if instance.product:
+            if ProductImages.objects.filter(product=instance.product, thumbnail=True).exists():
+                image = ProductImages.objects.filter(product=instance.product, thumbnail=True).latest("created_at")
+                return image.image        
+        else:
+            return None
 
 
 class ProductStockSerialier(serializers.ModelSerializer):
