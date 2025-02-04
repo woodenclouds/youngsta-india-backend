@@ -873,6 +873,7 @@ def total_sales(request):
     labels = []
     data = []
     purchases = Purchase.objects.filter(is_deleted=False)
+    total_amount = 0
     
     if filter_by == "today":
         purchases = (
@@ -917,10 +918,14 @@ def total_sales(request):
 
         labels = [month["month_start"].strftime("%Y-%m-%d") for month in purchases]
         data = [month["total_amount"] for month in purchases]
+        
+    if purchases.exists():
+        total_amount = sum(purchase["total_amount"] for purchase in purchases)
 
     response_data = {
         "StatusCode": 6000,
         "data": {
+            "total_amount":total_amount,
             "labels": labels,
             "data": data,
         },
