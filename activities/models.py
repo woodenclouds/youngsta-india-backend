@@ -157,6 +157,7 @@ class Cart(BaseModel):
     total_amount = models.PositiveBigIntegerField( blank=True, null=True)
     coupen_offer = models.PositiveBigIntegerField( blank=True, null=True)
     coupon_code = models.CharField(max_length=155, blank=True, null=True)
+    wallet_discount = models.PositiveBigIntegerField( blank=True, null=True)
     product_total = models.PositiveBigIntegerField( blank=True, null=True,default=0)
     
     def __str__(self):

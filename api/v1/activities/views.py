@@ -1931,7 +1931,7 @@ def apply_coupen(request):
         if coupen.offer and coupen.offer != 0:
             discount_amount = (cart.total_amount * coupen.offer) / 100
             if offer_start_price <= cart.total_amount <= offer_end_price:
-                cart.total_amount -= discount_amount
+                # cart.total_amount -= discount_amount
                 cart.coupon_code = coupon_code
                 cart.coupen_offer = discount_amount
                 cart.save()
@@ -1939,8 +1939,8 @@ def apply_coupen(request):
                     "StatusCode": 6000,
                     "data": {
                         "message": "Coupon applied successfully",
-                        "discount_amount": discount_amount,
-                        "total_amount": cart.total_amount
+                        "coupon_discount_amount": discount_amount,
+                        # "total_amount": cart.total_amount
                     }
                 }
             else:
@@ -1981,6 +1981,57 @@ def apply_coupen(request):
             "message": str(e),
         }
 
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def apply_wallet_amount(request):
+    try:
+       # Amount to be deducted from the cart's total amount.
+        amount = Decimal(request.data.get("amount"))
+        wallet = Wallet.objects.get(user__user=request.user)
+        cart = Cart.objects.get(user=request.user)
+        cart.total_amount = cart.total_amount or Decimal('0.00') 
+        print(amount,wallet,cart)
+        if amount:
+            if wallet.balance < amount:
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": {
+                        "message": "Wallet balance is less than the amount",
+                      
+                    }
+                }
+            if amount > cart.total_amount:
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": {
+                        "message": "Cart amount is less than the specified amount",
+                       
+                    }
+                }
+            else:
+                cart.wallet_discount = amount
+                cart.save()
+                response_data = {
+                    "StatusCode": 6000,
+                    "data": {
+                        "message": "Wallet amount applied successfully",
+                        "wallet_discount_amount": amount,
+                                           
+                    }
+                }
+     
+    except Exception as e:
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 

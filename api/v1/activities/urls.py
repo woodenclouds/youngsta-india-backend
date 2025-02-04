@@ -24,7 +24,7 @@ urlpatterns = [
     re_path(r"^add_to_cart/(?P<pk>.*)/$", views.add_to_cart, name="add_to_cart"),
     re_path(r"^add-refferal/$", views.add_referral, name="add_refferal"),
     re_path(r"^apply-coupen/$", views.apply_coupen, name="apply_coupen"),
-    # re_path(r"^apply-wallet-amount/$", views.apply_wallet_amount, name="apply_wallet_amount"),
+    re_path(r"^apply-wallet-amount/$", views.apply_wallet_amount, name="apply_wallet_amount"),
     re_path(
         r"^remove_from_cart/(?P<pk>.*)/$",
         views.remove_from_cart,
