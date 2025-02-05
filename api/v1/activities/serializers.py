@@ -58,7 +58,8 @@ class CartItemSerializer(serializers.ModelSerializer):
 
             return {
                 "name":instance.attribute.attribute_description.attribute_type.name,
-                "value":instance.attribute.attribute_description.value
+                "value":instance.attribute.attribute_description.value,
+                "price":instance.attribute.price
             }
        
         return None
