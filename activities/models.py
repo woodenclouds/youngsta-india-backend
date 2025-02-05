@@ -157,6 +157,7 @@ class Cart(BaseModel):
     total_amount = models.PositiveBigIntegerField( blank=True, null=True)
     coupen_offer = models.PositiveBigIntegerField( blank=True, null=True)
     coupon_code = models.CharField(max_length=155, blank=True, null=True)
+    wallet_discount = models.PositiveBigIntegerField( blank=True, null=True)
     product_total = models.PositiveBigIntegerField( blank=True, null=True,default=0)
     
     def __str__(self):
@@ -247,7 +248,8 @@ class PurchaseItems(BaseModel):
     is_returned = models.BooleanField(default=False, blank=True, null=True)
     is_cancelled = models.BooleanField(default=False, blank=True, null=True)
     credit_note = models.ForeignKey("activities.CreditNote",on_delete=models.CASCADE,null=True,blank=True,related_name="cancelled_items")
-
+    is_referal_credited = models.BooleanField(default=False, blank=True, null=True)
+    
     def __str__(self):
         return f"{self.product.name} in {self.purchase.user.username}'s purchase"
 
