@@ -114,13 +114,21 @@ def create_order(request):
                 }
             }
             return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+        
         if Cart.objects.filter(user=user).exists():
             cart = Cart.objects.get(user=user)
 
             if CartItem.objects.filter(cart=cart).exists():
                 cart_items = CartItem.objects.filter(cart=cart)
                 address = Address.objects.get(pk=address)
+
                 total_price = sum(item.price for item in cart_items)
+
+                # discount calculations
+                wallet_discount = cart.wallet_discount or 0
+                coupen_offer = cart.coupen_offer or 0
+                total_price = total_price - wallet_discount - coupen_offer
+
                 # with transaction.atomic():
                 purchase = Purchase.objects.create(
                     user=user,
@@ -128,6 +136,7 @@ def create_order(request):
                     address = address,
                     is_deleted = True
                 )
+
                 for item in cart_items:
                     PurchaseItems.objects.create(
                         purchase=purchase,
@@ -136,6 +145,7 @@ def create_order(request):
                         attribute= item.attribute,
                         price=item.price,
                     )
+
                     if item.referral_code:
                         if  UserProfile.objects.filter(refferal_code=item.referral_code).exists():
                             user_refered = UserProfile.objects.get(refferal_code=item.referral_code)
@@ -150,6 +160,7 @@ def create_order(request):
                             wallet = Wallet.objects.get(user=user_refered)
                             wallet.balance += item.product.referal_Amount
                             wallet.save()
+
                 cart.total_amount = 0
                 cart.coupen_offer = 0
                 cart.coupon_code = ''
@@ -281,3 +292,4 @@ def handle_response(request):
     else:
         url = f"https://youngsta.in/my-account/orders?action=payment_failed"
         return redirect(url)
+

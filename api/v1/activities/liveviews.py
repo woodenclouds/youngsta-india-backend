@@ -188,7 +188,7 @@ def add_to_cart(request, pk):
                             product=product,
                             attribute=attribute_description,
                             quantity=Decimal(quantity),
-                            price=attribute_description.price * Decimal(quantity),
+                            price=product.selling_price * Decimal(quantity),
                         )
                         if referral_code:
                             cart_item.referral_code = referral_code
@@ -361,51 +361,6 @@ def remove_from_cart(request, pk):
 #             {"app_data": response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
 #         )
 
-
-# @api_view(["GET"])
-# def get_cart(request):
-#     try:
-#         print(request.user,":user")
-#         if request.user is not None:  # Check if there is an authenticated user
-#             if Cart.objects.filter(user=request.user).exists():
-#                 cart = Cart.objects.get(user=request.user)
-#                 cart_items = CartItem.objects.filter(cart=cart)
-#                 serializer = CartItemSerializer(cart_items,context={"request":request}, many=True)
-#                 wallet_discount = cart.wallet_discount or 0
-#                 coupen_offer = cart.coupen_offer or 0
-#                 total_price =cart.product_total - wallet_discount - coupen_offer
-#                 discount = wallet_discount + coupen_offer
-
-#                 response_data = {
-#                     "StatusCode": 6000,
-#                     "message": "Cart Items",
-#                      "data": {
-#                         #  "total_price":cart.total_amount,
-#                          "total_price":total_price,
-#                         #  "discount":cart.coupen_offer,
-#                          "discount":discount,
-#                          "product_total":cart.product_total,
-#                          "cart_items": serializer.data
-#                          },
-#                 }
-#             else:
-#                 response_data = {
-#                     "StatusCode": 6001,
-#                     "message": "Cart not found",
-#                 }
-#         else:
-#             response_data = {
-#                 "StatusCode": 6002,
-#                 "message": "User not authenticated",
-#             }
-#     except Exception as e:
-#         response_data = {
-#             "status": 0,
-#             "api": request.get_full_path(),
-#             "request": request.data,
-#             "message": str(e),
-#         }
-#     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 @api_view(["GET"])
 def get_cart(request):
@@ -808,24 +763,10 @@ def purchase_success(request, pk):
             is_paid=True,
         )
         cart = Cart.objects.get(user=purchase.user)
-        profile = UserProfile.objects.get(user=purchase.user)
-
-        # wallet transaction
-        # wallet = Wallet.objects.filter(user=profile)
-        # wallet.balance = wallet.balance - cart.wallet_discount
-        # wallet.save()
-
-        # wallet_transactions = WalletTransaction.objects.create(
-        #     user=profile,
-        #     amount=cart.wallet_discount,
-        #     success=True,
-        #     credit=False,
-        # )
-
         cart_items = CartItem.objects.filter(cart=cart)
         cart_items.delete()
         # Create a transaction log
-        
+        profile = UserProfile.objects.get(user=purchase.user)
         transaction_log = Transaction.objects.create(
             user=profile, amount=purchase.total_amount, success=True
         )
@@ -834,7 +775,6 @@ def purchase_success(request, pk):
             status="Pending",
             description="Payment completed and preparing to for shipping",
         )
-
         # transaction = Transaction.objects.create()
         # transaction.commit()
         response_data = {
@@ -933,6 +873,7 @@ def total_sales(request):
     labels = []
     data = []
     purchases = Purchase.objects.filter(is_deleted=False)
+    total_amount = 0
     
     if filter_by == "today":
         purchases = (
@@ -977,10 +918,14 @@ def total_sales(request):
 
         labels = [month["month_start"].strftime("%Y-%m-%d") for month in purchases]
         data = [month["total_amount"] for month in purchases]
+        
+    if purchases.exists():
+        total_amount = sum(purchase["total_amount"] for purchase in purchases)
 
     response_data = {
         "StatusCode": 6000,
         "data": {
+            "total_amount":total_amount,
             "labels": labels,
             "data": data,
         },
@@ -1991,7 +1936,7 @@ def apply_coupen(request):
         if coupen.offer and coupen.offer != 0:
             discount_amount = (cart.total_amount * coupen.offer) / 100
             if offer_start_price <= cart.total_amount <= offer_end_price:
-                # cart.total_amount -= discount_amount
+                cart.total_amount -= discount_amount
                 cart.coupon_code = coupon_code
                 cart.coupen_offer = discount_amount
                 cart.save()
@@ -1999,8 +1944,8 @@ def apply_coupen(request):
                     "StatusCode": 6000,
                     "data": {
                         "message": "Coupon applied successfully",
-                        "coupon_discount_amount": discount_amount,
-                        # "total_amount": cart.total_amount
+                        "discount_amount": discount_amount,
+                        "total_amount": cart.total_amount
                     }
                 }
             else:
@@ -2042,124 +1987,6 @@ def apply_coupen(request):
         }
 
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def remove_coupen_discount(request, pk):
-    try:
-        cart = Cart.objects.get(id=pk)
-        if cart:
-            cart.coupen_offer = None
-            cart.coupon_code = None
-            cart.save()
-            response_data = {           
-                "StatusCode": 6000,
-                    "data": {
-                        "message": "Coupon discount removed successfully",                                                      
-                    }
-                }
-        else:
-            response_data = {
-                    "StatusCode": 6001,
-                    "data": {
-                        "message": "Cart not found",
-                      
-                    }
-                }
-
-    except Exception as e:
-        response_data = {
-            "status": 0,
-            "api": request.get_full_path(),
-            "request": request.data,
-            "message": str(e),
-        }
-    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def apply_wallet_amount(request):
-    try:
-       # Amount to be deducted from the cart's total amount.
-        amount = Decimal(request.data.get("amount"))
-        wallet = Wallet.objects.get(user__user=request.user)
-        cart = Cart.objects.get(user=request.user)
-        cart.total_amount = cart.total_amount or Decimal('0.00') 
-        print(amount,wallet,cart)
-        if amount:
-            if wallet.balance < amount:
-                response_data = {
-                    "StatusCode": 6001,
-                    "data": {
-                        "message": "Wallet balance is less than the amount",
-                      
-                    }
-                }
-            if amount > cart.total_amount:
-                response_data = {
-                    "StatusCode": 6001,
-                    "data": {
-                        "message": "Cart amount is less than the specified amount",
-                       
-                    }
-                }
-            else:
-                cart.wallet_discount = amount
-                cart.save()
-                response_data = {
-                    "StatusCode": 6000,
-                    "data": {
-                        "message": "Wallet amount applied successfully",
-                        "wallet_discount_amount": amount,
-                                           
-                    }
-                }
-     
-    except Exception as e:
-        response_data = {
-            "status": 0,
-            "api": request.get_full_path(),
-            "request": request.data,
-            "message": str(e),
-        }
-    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
-
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def remove_wallet_discount(request, pk):
-    try:
-        cart = Cart.objects.get(id=pk)
-        if cart:
-            cart.wallet_discount = None
-            cart.save()
-            response_data = {           
-                "StatusCode": 6000,
-                    "data": {
-                        "message": "Wallet amount discount removed successfully",                                                      
-                    }
-                }
-        else:
-            response_data = {
-                    "StatusCode": 6001,
-                    "data": {
-                        "message": "Cart not found",
-                      
-                    }
-                }
-
-    except Exception as e:
-        response_data = {
-            "status": 0,
-            "api": request.get_full_path(),
-            "request": request.data,
-            "message": str(e),
-        }
-    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
-
 
 
 @api_view(["GET"])
