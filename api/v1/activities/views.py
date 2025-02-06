@@ -159,7 +159,7 @@ def view_wishlist(request):
 
 
 @api_view(["POST"])
-@permission_classes((AllowAny,))
+@permission_classes((IsAuthenticated,))
 def add_to_cart(request, pk):
     try:
         user = request.user
@@ -1988,7 +1988,16 @@ def apply_coupen(request):
             return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
         cart = Cart.objects.get(user=request.user)
-        cart.total_amount = cart.total_amount or Decimal('0.00')  # Ensure total_amount is not None
+        cart.total_amount = cart.product_total or Decimal('0.00')  # Ensure total_amount is not None
+        
+        # if cart.coupon_code == coupen.code:
+        #     response_data = {
+        #         "StatusCode": 6001,
+        #         "data": {
+        #             "message": "Coupon code already applied"
+        #         }
+        #     }
+        #     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
         offer_start_price = coupen.offer_start_price or Decimal('0.00')
         offer_end_price = coupen.offer_end_price or Decimal('0.00')

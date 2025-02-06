@@ -164,8 +164,8 @@ class Cart(BaseModel):
         return f"Cart for {self.user.username}"
 
     def save(self, *args, **kwargs):
-        if self.product_total is not None and self.coupen_offer is not None:
-            self.total_amount = self.product_total - self.coupen_offer
+        # if self.product_total is not None and self.coupen_offer is not None:
+        #     self.total_amount = self.c - self.coupen_offer
         super().save(*args, **kwargs)
 
 
