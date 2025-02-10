@@ -27,7 +27,7 @@ def admin_product(request):
         category_id = request.GET.get("category", "")
 
         query = Product.objects.filter(
-            Q(name__icontains=search) | Q(sub_category__name__icontains=search)
+           (Q(name__icontains=search) | Q(sub_category__name__icontains=search))& Q(is_parent=True)
         )
 
         if category_id != "":
@@ -1928,6 +1928,7 @@ def addProductNew(request):
             name = request.data["name"]
             description = request.data["name"]
             referal_amount = request.data["referal_amount"]
+
             try:
                 offer = request.data["offer"]
             except:
@@ -1968,6 +1969,7 @@ def addProductNew(request):
                 cashback = request.data["cashback"]
             except:
                 cashback = 0
+                
             if attributes and images:
                 if SubCategory.objects.filter(pk=subcategory_id).exists():
                     product = Product.objects.create(

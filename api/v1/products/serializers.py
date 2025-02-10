@@ -81,6 +81,7 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
     category = serializers.SerializerMethodField()
     category_id = serializers.SerializerMethodField()
+    total_products_stock = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -109,11 +110,23 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
             "stock",
             "published",
             "flash_sale",
+            "total_products_stock",
         )
 
     def get_stock(self, instance):
         stock = ProductAttribute.objects.filter(product=instance).aggregate(total_stock=Sum("quantity"))
         return stock["total_stock"]
+
+    def get_total_products_stock(self, instance):
+        products = Product.objects.filter(product_code=instance.product_code)
+        product_varient_count = products.count()
+
+        total_stock = ProductAttribute.objects.filter(product__in=products).aggregate(total_stock=Sum("quantity"))
+
+        return {
+            "total_stock": total_stock["total_stock"] or 0,  
+            "product_varient_count": product_varient_count,
+        }
 
     def get_thumbnail(self, instance):
         image = None
