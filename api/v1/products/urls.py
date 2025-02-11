@@ -56,6 +56,7 @@ urlpatterns = [
     # ---------------admin-------------
     re_path(r"^admin/add-attribute/$", views.add_new_attribute, name="add_attribute"),
     re_path(r"^admin/product/$", views.admin_product, name="admin_product"),
+    re_path(r"^admin/similar-product/(?P<pk>.*)/$", views.admin_similar_product, name="admin_similar_product"),
     re_path(r"^admin/addCategory/$", views.addCategory, name="add_category"),
     re_path(
         r"^admin/deleteCategory/(?P<pk>.*)/$",

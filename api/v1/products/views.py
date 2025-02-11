@@ -100,6 +100,88 @@ def admin_product(request):
         }
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
+@api_view(["GET"])
+@group_required(["admin"])
+def admin_similar_product(request, pk):
+    try:
+        search = request.GET.get("search", "")
+        category_id = request.GET.get("category", "")
+
+        product = Product.objects.filter(pk=pk).first()
+
+        query = Product.objects.filter(
+           (Q(name__icontains=search) | Q(sub_category__name__icontains=search)) &Q(similar_code=product.similar_code)
+        )
+
+        if category_id != "":
+            category = Category.objects.get(pk=category_id)
+            sub_categories = SubCategory.objects.filter(category=category)
+            sub_category_ids = sub_categories.values_list("id", flat=True)
+            inner_sub_categories = SubCategory.objects.filter(
+                parent__in=sub_category_ids
+            )
+            inner_sub_category_ids = inner_sub_categories.values_list("id", flat=True)
+            query = query.filter(
+                Q(sub_category__in=sub_category_ids)
+                | Q(sub_category__in=inner_sub_category_ids)
+            )
+
+        query = query.order_by("name")
+        paginator = Paginator(query, 10)
+        page = request.GET.get("page")
+
+        try:
+            products_page = paginator.page(page)
+        except PageNotAnInteger:
+            products_page = paginator.page(1)
+        except EmptyPage:
+            products_page = paginator.page(paginator.num_pages)
+
+        has_next_page = products_page.has_next()
+        next_page_number = products_page.next_page_number() if has_next_page else 1
+
+        has_previous_page = products_page.has_previous()
+        previous_page_number = (
+            products_page.previous_page_number() if has_previous_page else 1
+        )
+
+        serialized = ProductAdminViewSerializer(products_page, many=True).data
+
+        response_data = {
+            "StatusCode": 6000,
+            "data": serialized,
+            "pagination_data": {
+                "current_page": products_page.number,
+                "has_next_page": has_next_page,
+                "next_page_number": next_page_number,
+                "has_previous_page": has_previous_page,
+                "previous_page_number": previous_page_number,
+                "total_pages": paginator.num_pages,
+                "total_items": paginator.count,
+                "first_item": products_page.start_index(),
+                "last_item": products_page.end_index(),
+            },
+        }
+    except (Product.DoesNotExist, Category.DoesNotExist, SubCategory.DoesNotExist):
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": "Product, Category, or SubCategory not found",
+            "response": {},
+        }
+    except Exception as e:
+        transaction.rollback()
+        errType = e.__class__.__name__
+        errors = {errType: traceback.format_exc()}
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors,
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 from django.db.models import Max
 
@@ -1797,7 +1879,7 @@ def get_related_product(request):
         product_id = request.GET.get("product_id")
         if product_id:
             product = Product.objects.get(pk=product_id)
-            instances = Product.objects.filter(product_code=product.product_code)
+            instances = Product.objects.filter(similar_code=product.similar_code)
             serialized = ProductViewSerializer(
                 instances, many=True, context={"request": request}
             ).data
@@ -1958,9 +2040,9 @@ def addProductNew(request):
             except:
                 images = request.data["images"]
             try:
-                product_code = request.data["product_code"]
+                similar_code = request.data["similar_code"]
             except:
-                product_code = ""
+                similar_code = ""
             try:
                 gst_price = request.data["gst_price"]
             except:
@@ -2009,14 +2091,14 @@ def addProductNew(request):
                             image=image.get("image"),
                             thumbnail=image.get("thumbnail"),
                         )
-                    if product_code:
-                        product.product_code = product_code
+                    if similar_code:
+                        product.similar_code = similar_code
                         product.is_parent = False
                         product.save()
                     transaction.commit()
 
                     instances = Product.objects.filter(
-                        product_code=product.product_code
+                        similar_code=product.similar_code
                     )
                     serialized = ProductCodeSerializer(
                         instances, context={"request": request}, many=True
@@ -2240,7 +2322,17 @@ def productSingle(request, pk):
 def delete_product(request, pk):
     if Product.objects.filter(pk=pk).exists():
         product = Product.objects.get(pk=pk)
+        similar_code = product.similar_code
+        is_parent = product.is_parent  
         product.delete()
+        
+        if is_parent:
+            other_products = Product.objects.filter(similar_code=similar_code)
+            if other_products.exists():
+                new_parent = other_products.first()
+                new_parent.is_parent = True
+                new_parent.save()
+
         response_data = {
             "StatusCode": 6000,
             "data": {"message": "successfully deleted product"},
@@ -2336,8 +2428,8 @@ def viewProductCode(request):
 @permission_classes((AllowAny,))
 def get_varients(request):
     try:
-        product_code = request.GET.get("product_code", None)
-        instances = Product.objects.filter(product_code=product_code)
+        similar_code = request.GET.get("similar_code", None)
+        instances = Product.objects.filter(similar_code=similar_code)
         serialized = ProductWithCodeSerializer(
             instances, many=True, context={"request": request}
         ).data

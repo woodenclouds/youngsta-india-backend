@@ -145,32 +145,12 @@ class Meta:
     verbose_name_plural = "Tags"
 
 
-# class Product(BaseModel):
-#     name = models.TextField()
-#     description = models.TextField()
-#     price = models.DecimalField(max_digits=8, decimal_places=2)
-#     offers = models.PositiveIntegerField(max_length=100,blank=True,null=True)
-#     brand = models.ForeignKey(Brand,on_delete=models.CASCADE,null=True,blank=True, related_name="brand")
-#     subcategory = models.ForeignKey(SubCategory,on_delete= models.CASCADE, related_name="sub_categories", blank=True)
-#     specs = models.TextField(blank=True, null=True)
-#     status = models.CharField(choices=PRODUCT_STATUS,default='stocking',blank=True,null=True)
-#     purchase_price = models.DecimalField(max_digits=8, decimal_places=2)
-
-#     class Meta:
-#         db_table = 'product_product'
-#         managed = True
-#         verbose_name = 'Product'
-#         verbose_name_plural = 'Products'
-
-#     def __str__(self):
-#         return  self.name
-
 
 class Product(models.Model):
     name = models.TextField()
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    product_code = models.CharField(max_length=15, blank=True, null=True)
+    similar_code = models.CharField(max_length=15, blank=True, null=True)
     is_parent = models.BooleanField(default=True, blank=True, null=True)
     sub_category = models.ForeignKey(
         "SubCategory", on_delete=models.CASCADE, blank=True, null=True
@@ -210,14 +190,14 @@ class Product(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        if not self.product_code:
-            self.product_code = self.generate_unique_code()
+        if not self.similar_code:
+            self.similar_code = self.generate_unique_code()
         super().save(*args, **kwargs)
 
     def generate_unique_code(self):
         characters = string.ascii_uppercase + string.digits
         generated_code = "".join(random.choice(characters) for _ in range(8))
-        while Product.objects.filter(product_code=generated_code).exists():
+        while Product.objects.filter(similar_code=generated_code).exists():
             generated_code = "".join(random.choice(characters) for _ in range(8))
         return generated_code
 
