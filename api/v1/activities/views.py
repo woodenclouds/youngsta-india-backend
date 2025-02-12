@@ -194,6 +194,7 @@ def add_to_cart(request, pk):
                             cart_item.referral_code = referral_code
                             cart_item.save()
                             
+                        cart.product_total = cart.product_total or Decimal(0.0)
                         cart.product_total += cart_item.price
                         cart.save()
                         response_data = {
@@ -404,7 +405,7 @@ def remove_from_cart(request, pk):
 #             "api": request.get_full_path(),
 #             "request": request.data,
 #             "message": str(e),
-#         }
+#         } 
 #     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 @api_view(["GET"])
@@ -413,6 +414,11 @@ def get_cart(request):
         print(request.user,":user")
         if request.user is not None:  # Check if there is an authenticated user
             if Cart.objects.filter(user=request.user).exists():
+                wallet_amount = 0
+                if Wallet.objects.filter(user=request.user.userprofile).exists():
+                    wallet = Wallet.objects.get(user=request.user.userprofile)
+                    wallet_amount = wallet.balance
+                
                 cart = Cart.objects.get(user=request.user)
                 cart_items = CartItem.objects.filter(cart=cart)
                 serializer = CartItemSerializer(cart_items,context={"request":request}, many=True)
@@ -424,8 +430,9 @@ def get_cart(request):
                          "total_price":cart.total_amount,
                          "discount":cart.coupen_offer,
                          "product_total":cart.product_total,
+                         "wallet_amount":wallet_amount,
                          "cart_items": serializer.data
-                         },
+                    },
                 }
             else:
                 response_data = {
@@ -1238,10 +1245,11 @@ def create_refferal(request, pk):
                         reffered_to = None
 
                     refferal = Referral.objects.create(
-                        referred_by=reffered_by,
-                        referred_to=reffered_to,
+                        referred_by=reffered_by.user,
+                        referred_to=reffered_to.user,
                         product=product,
                         refferal_status="pending",
+                        referral_amount=product.price
                     )
                     transaction.commit()
 
@@ -1627,7 +1635,11 @@ def wallet(request):
         profile = UserProfile.objects.get(user=user)
         if Wallet.objects.filter(user=profile).exists():
             wallet = Wallet.objects.get(user=profile)
-            response_data = {"StatusCode": 6000, "data": {"balance": wallet.balance}}
+            wallet_transactions_data = []
+            if WalletTransaction.objects.filter(user=user.userprofile).exists():
+                wallet_transactions = WalletTransaction.objects.filter(user=user.userprofile)
+                wallet_transactions_data = WalletTransactionSerializer(wallet_transactions,many=True).data
+            response_data = {"StatusCode": 6000, "data": {"balance": wallet.balance,"transactions":wallet_transactions_data}}
         else:
             response_data = {
                 "StatusCode": 6001,
@@ -1795,6 +1807,9 @@ def view_oder_detail(request, pk):
             "data": {
                 "name": f"{user_profile.first_name} {user_profile.last_name if user_profile.last_name else None}",
                 "total_amount": purchase.total_amount,
+                "is_coupon_applied":purchase.coupon_code,
+                "coupon_discount":purchase.coupon_discount,
+                "total_without_discount":purchase.total_without_discount,
                 "status": purchase.status,
                 "order_data": purchase.created_at,
                 "products": serialized,
@@ -2027,7 +2042,7 @@ def apply_coupen(request):
 
         elif coupen.offer_price and coupen.offer_price != 0:
             if offer_start_price <= cart.total_amount <= offer_end_price:
-                cart.total_amount -= coupen.offer_price
+                # cart.total_amount -= coupen.offer_price
                 cart.coupen_offer = coupen.offer_price
                 cart.coupon_code = coupon_code
                 cart.save()

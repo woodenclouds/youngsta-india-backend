@@ -26,9 +26,6 @@ def process_referral_rewards():
                     wallet.save()
                     referal.is_paid=True
                     referal.save()
-                    WalletTransaction.objects.create(user=user_refered,
-                                                     amount= referal.referral_amount,
-                                                     success=True,
-                    )
+                    WalletTransaction.objects.create(user=user_refered,amount= referal.referral_amount,success=True)
 
 

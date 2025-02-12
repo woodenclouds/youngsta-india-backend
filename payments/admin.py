@@ -5,3 +5,4 @@ from .models import *
 admin.site.register(Wallet)
 admin.site.register(Invoice)
 admin.site.register(Transaction)
+admin.site.register(WalletTransaction)
