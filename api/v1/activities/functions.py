@@ -198,7 +198,6 @@ def get_invoice_data(pk):
             product_details.append({
                 'product_name': product.name,
                 'product_description': product.description,
-                'similar_code':product.similar_code,
                 'quantity': item.quantity,
                 'price_excluding_tax': f"{price_excluding_tax:.2f}",
                 'CGST': f"{cgst:.2f}",

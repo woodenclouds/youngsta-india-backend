@@ -61,7 +61,9 @@ def admin_product(request):
         previous_page_number = (
             products_page.previous_page_number() if has_previous_page else 1
         )
-        serialized = ProductAdminViewSerializer(products_page, many=True).data
+
+        # serialized = ProductAdminViewSerializer(products_page, many=True).data
+        serialized = ProductAdminViewSerializer(products_page.object_list, many=True).data
 
         response_data = {
             "StatusCode": 6000,
@@ -108,19 +110,9 @@ def admin_similar_product(request, pk):
 
         product = Product.objects.filter(pk=pk).first()
 
-        # query = Product.objects.filter(
-        #    (Q(name__icontains=search) | Q(sub_category__name__icontains=search)) 
-        # )
-        if product.is_parent:
-            query = Product.objects.filter(parent=product)
-        else:
-            query = Product.objects.filter(parent=product.parent)
-
-        # Apply search filter
-        if search:
-            query = query.filter(Q(name__icontains=search) | Q(sub_category__name__icontains=search))
-
-
+        query = Product.objects.filter(
+           (Q(name__icontains=search) | Q(sub_category__name__icontains=search)) &Q(similar_code=product.similar_code)
+        )
 
         if category_id != "":
             category = Category.objects.get(pk=category_id)
@@ -1888,10 +1880,7 @@ def get_related_product(request):
         product_id = request.GET.get("product_id")
         if product_id:
             product = Product.objects.get(pk=product_id)
-            if product.is_parent:
-                instances = Product.objects.filter(parent=product)  
-            else:
-                instances = Product.objects.filter(parent=product.parent)
+            instances = Product.objects.filter(similar_code=product.similar_code)
             serialized = ProductViewSerializer(
                 instances, many=True, context={"request": request}
             ).data
@@ -2052,9 +2041,9 @@ def addProductNew(request):
             except:
                 images = request.data["images"]
             try:
-                parent = request.data["parent"]
+                similar_code = request.data["similar_code"]
             except:
-                parent = ""
+                similar_code = ""
             try:
                 gst_price = request.data["gst_price"]
             except:
@@ -2103,31 +2092,22 @@ def addProductNew(request):
                             image=image.get("image"),
                             thumbnail=image.get("thumbnail"),
                         )
-                    if parent:
-                        type ="child"
-                        if(parent_data := Product.objects.filter(id = parent)).exists():
-                            product.parent= Product.objects.filter(id = parent).first() 
-                            product.is_parent = False
-                            product.save()
-                            parent_id = parent
-                        else:
-                            response_data = {
-                                "StatusCode": 6001,
-                                "data": {
-                                    "message": "parent not found",
-                                },
-                            }
-                    else:
-                        type ="parent"
-                        parent_id = product.id
-
+                    if similar_code:
+                        product.similar_code = similar_code
+                        product.is_parent = False
+                        product.save()
                     transaction.commit()
 
+                    instances = Product.objects.filter(
+                        similar_code=product.similar_code
+                    )
+                    serialized = ProductCodeSerializer(
+                        instances, context={"request": request}, many=True
+                    ).data
                     response_data = {
                         "StatusCode": 6000,
-                        "data": {"message": "Success","type":type,"parent": parent_id if parent_id else "None"},
+                        "data": {"message": "Success", "products": serialized},
                     }
-
                 else:
                     response_data = {
                         "StatusCode": 6001,
@@ -2343,22 +2323,17 @@ def productSingle(request, pk):
 def delete_product(request, pk):
     if Product.objects.filter(pk=pk).exists():
         product = Product.objects.get(pk=pk)
-        is_parent = product.is_parent 
-        print(is_parent)
-        parent_id = product.id 
+        similar_code = product.similar_code
+        is_parent = product.is_parent  
+        product.delete()
         
         if is_parent:
-            print("parent",is_parent)
-            variants = Product.objects.filter(parent=parent_id)  # Get all variants
-            print("variants",variants)
-            if variants.exists():
-                new_parent = variants.first() 
+            other_products = Product.objects.filter(similar_code=similar_code)
+            if other_products.exists():
+                new_parent = other_products.first()
                 new_parent.is_parent = True
-                new_parent.parent = None 
                 new_parent.save()
 
-                variants.exclude(pk=new_parent.pk).update(parent=new_parent)
-        product.delete()
         response_data = {
             "StatusCode": 6000,
             "data": {"message": "successfully deleted product"},
@@ -2454,8 +2429,8 @@ def viewProductCode(request):
 @permission_classes((AllowAny,))
 def get_varients(request):
     try:
-        parent_id = request.GET.get("parent", None)
-        instances = Product.objects.filter(parent=parent_id)
+        similar_code = request.GET.get("similar_code", None)
+        instances = Product.objects.filter(similar_code=similar_code)
         serialized = ProductWithCodeSerializer(
             instances, many=True, context={"request": request}
         ).data

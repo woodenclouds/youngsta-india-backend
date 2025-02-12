@@ -2402,7 +2402,6 @@ def download_credit_note(request, pk):
             
             purchase_items.append({
                 "description": purchase_item.product.description,
-                "similar_code": purchase_item.product.similar_code,
                 "name": purchase_item.product.name,
                 "quantity": purchase_item.quantity,
                 "price": purchase_item.price,
