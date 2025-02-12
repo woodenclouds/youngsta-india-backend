@@ -350,7 +350,7 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
     def get_product_details(self, instance):
         product_detail = {
             "name": instance.product.name,
-            "selling_price": instance.product.selling_price,
+            "selling_price": instance.attribute.price,
         }
 
         if ProductImages.objects.filter(product=instance.product, thumbnail=True).exists():
@@ -362,7 +362,7 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
         return product_detail
     
     def get_price(self, instance):
-        return float(instance.product.selling_price) * float(instance.quantity)
+        return float(instance.attribute.price) * float(instance.quantity)
 
     # def get_order_data(self,instance):
     #     try:
@@ -530,3 +530,9 @@ class CreateCreditNoteSerializer(serializers.Serializer):
             PurchaseItems.objects.filter(pk__in=cancelled_items,is_deleted=False).update(credit_note=credit_note,is_returned=True)
 
         return credit_note
+    
+    
+class WalletTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WalletTransaction
+        fields = "__all__"

@@ -164,8 +164,8 @@ class Cart(BaseModel):
         return f"Cart for {self.user.username}"
 
     def save(self, *args, **kwargs):
-        if self.product_total is not None and self.coupen_offer is not None:
-            self.total_amount = self.product_total - self.coupen_offer
+        # if self.product_total is not None and self.coupen_offer is not None:
+        #     self.total_amount = self.c - self.coupen_offer
         super().save(*args, **kwargs)
 
 
@@ -214,6 +214,9 @@ class Purchase(BaseModel):
     invoice_no = models.CharField(max_length=128, blank=True, null=True)
     method = models.CharField(choices=PAYMENT_METHOD, blank=True, null=True,max_length=255)
     source = models.ForeignKey(Sources, on_delete=models.CASCADE, blank=True, null=True)
+    coupon_code = models.CharField(max_length=255, blank=True, null=True)
+    coupon_discount = models.CharField(max_length=255, blank=True, null=True)
+    total_without_discount = models.CharField(max_length=255, blank=True, null=True)
     # shiprocket fields
     SR_shipment_id = models.CharField(max_length=255,null=True, blank=True)
     SR_order_id = models.CharField(max_length=255,null=True, blank=True)

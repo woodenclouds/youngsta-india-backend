@@ -97,7 +97,10 @@ def create_order(request):
     try:
         user = request.user
         customer_profile = UserProfile.objects.get(user=user)
-        address = request.data["address"]
+        address = request.data.get("address")
+        coupon_code = request.data.get("coupon_code")
+        use_wallet_balance = request.data.get("use_wallet_balance")
+        
         if not address:
             response_data = {
                 "StatusCode":6001,
@@ -125,9 +128,38 @@ def create_order(request):
                 total_price = sum(item.price for item in cart_items)
 
                 # discount calculations
-                wallet_discount = cart.wallet_discount or 0
+                # wallet_discount = cart.wallet_discount or 0
                 coupen_offer = cart.coupen_offer or 0
-                total_price = total_price - wallet_discount - coupen_offer
+                
+                if coupon_code and cart.coupon_code == coupon_code:
+                    total_price = total_price - coupen_offer
+                
+                    if (cart.product_total - coupen_offer) != total_price:
+                        response_data = {
+                            "StatusCode": 6001,
+                            "data": {
+                                "title": "An error occurred",
+                                "status_code": 'Something went wrong',
+                                "amount":f'{cart.product_total} - {coupen_offer} - {total_price}'
+                            },
+                        }
+                        return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+                    
+                if Wallet.objects.filter(user=user.userprofile).exists():
+                    wallet = Wallet.objects.get(user=user.userprofile)
+                    if use_wallet_balance and wallet.balance >0 and wallet.balance >= total_price:
+                        wallet.balance -= total_price
+                        wallet.save()
+                        total_price = 0
+                    else:
+                        response_data = {
+                            "StatusCode": 6001,
+                            "data": {
+                                "title": "An error occurred",
+                                "status_code": 'Insufficient balance in wallet',
+                            },
+                        }
+                        return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
                 # with transaction.atomic():
                 purchase = Purchase.objects.create(
@@ -136,6 +168,12 @@ def create_order(request):
                     address = address,
                     is_deleted = True
                 )
+                
+                if coupon_code and cart.coupon_code == coupon_code:
+                    purchase.coupon_code = coupon_code
+                    purchase.coupon_discount = coupen_offer
+                    purchase.total_without_discount = cart.product_total
+                    purchase.save()
 
                 for item in cart_items:
                     PurchaseItems.objects.create(
@@ -146,26 +184,27 @@ def create_order(request):
                         price=item.price,
                     )
 
-                    if item.referral_code:
-                        if  UserProfile.objects.filter(refferal_code=item.referral_code).exists():
-                            user_refered = UserProfile.objects.get(refferal_code=item.referral_code)
+                    if item.referral_code and UserProfile.objects.filter(refferal_code=item.referral_code).exists():
+                        user_refered = UserProfile.objects.get(refferal_code=item.referral_code)
+                        if not Referral.objects.filter(product=item.product,referred_by = user_refered.user,referred_to = customer_profile.user).exists():
                             Referral.objects.create(
                                 product = item.product,
                                 referred_by = user_refered.user,
                                 referred_to = customer_profile.user,
                                 referral_amount = item.product.referal_Amount,
                                 order = purchase,
+                                refferal_status='pending',
                                 is_paid = False
                             ) 
-                            wallet = Wallet.objects.get(user=user_refered)
-                            wallet.balance += item.product.referal_Amount
-                            wallet.save()
+                        # wallet = Wallet.objects.get(user=user_refered)
+                        # wallet.balance += item.product.referal_Amount
+                        # wallet.save()
 
-                cart.total_amount = 0
-                cart.coupen_offer = 0
-                cart.coupon_code = ''
-                cart.product_total = 0
-                cart.save()
+                # cart.total_amount = 0
+                # cart.coupen_offer = 0
+                # cart.coupon_code = ''
+                # cart.product_total = 0
+                # cart.save()
                 cash_free_args = {
                     "request": request,
                     "instance": purchase,
@@ -194,6 +233,7 @@ def create_order(request):
                             "link_expiry_time": cash_free_create_order_response[
                                 "link_expiry_time"
                             ],
+                            "use_wallet_balance":use_wallet_balance
                         },
                     }
                 else:
@@ -245,7 +285,7 @@ def handle_response(request):
             order_status = order_status_response.json()
             # user = request.user
             user_profile = UserProfile.objects.get(user=purchase.user)
-            send_otp_email("safwan.woodenclouds@gmail.com",str(order_status))
+            # send_otp_email("safwan.woodenclouds@gmail.com",str(order_status))
             if order_status["order_status"] == "ACTIVE":
                 purchase.status = "Pending"
                 purchase.is_deleted = False
@@ -256,6 +296,15 @@ def handle_response(request):
                     attribute = item.attribute
                     attribute.quantity -= item.quantity
                     attribute.save()
+                    
+                if purchase.referrals.filter(is_deleted=False):
+                    for referral in purchase.referrals.filter(is_deleted=False):
+                        WalletTransaction.objects.create(
+                            user=referral.referred_by.userprofile,
+                            amount=referral.referral_amount,
+                            transaction_status='processing',
+                            transaction_description=f"Reward for referring product to {user_profile.first_name}"
+                        )
                     
                 current_time = datetime.datetime.now().date()
                 invoice = Invoice.objects.create(
@@ -279,6 +328,11 @@ def handle_response(request):
                     transaction_description="Purchased from cashfree",
                 )
                 cart = Cart.objects.get(user=purchase.user)
+                cart.total_amount = 0
+                cart.coupen_offer = 0
+                cart.coupon_code = ''
+                cart.product_total = 0
+                cart.save()
                 cart_items = CartItem.objects.filter(cart=cart)
                 cart_items.delete()
                 url = "https://youngsta.in/my-account/orders?action=payment_success"

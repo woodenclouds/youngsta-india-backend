@@ -18,12 +18,17 @@ class Wallet(BaseModel):
         return f"{self.user.first_name}'s wallet"
     
 class WalletTransaction(BaseModel):
+    WALLET_TRANSACTION_STATUS = (
+        ('processing','Processing'),
+        ('success','Success'),
+        ('failed','Failed'),
+    )
     user = models.ForeignKey("accounts.UserProfile", on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2, default="0")
     transaction_mode = models.CharField(max_length=155, blank=True,null=True)
     transaction_type = models.CharField(max_length=155, blank=True,null=True)
     transaction_id = models.CharField(max_length=155, blank=True,null=True)
-    transaction_status = models.CharField(max_length=155, blank=True, null=True)
+    transaction_status = models.CharField(choices=WALLET_TRANSACTION_STATUS,max_length=155, blank=True, null=True)
     transaction_description = models.CharField(max_length=155, blank=True, null=True)
     success = models.BooleanField(default=False)
     credit = models.BooleanField(default=True, blank=True, null=True)
