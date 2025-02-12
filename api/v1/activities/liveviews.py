@@ -405,7 +405,7 @@ def remove_from_cart(request, pk):
 #             "api": request.get_full_path(),
 #             "request": request.data,
 #             "message": str(e),
-#         } 
+#         }
 #     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 @api_view(["GET"])
@@ -2426,7 +2426,7 @@ def download_credit_note(request, pk):
             
             purchase_items.append({
                 "description": purchase_item.product.description,
-                "similar_code": purchase_item.product.similar_code,
+                "product_code": purchase_item.product.product_code,
                 "name": purchase_item.product.name,
                 "quantity": purchase_item.quantity,
                 "price": purchase_item.price,

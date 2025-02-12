@@ -81,7 +81,7 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
     category = serializers.SerializerMethodField()
     category_id = serializers.SerializerMethodField()
-    total_products_stock= serializers.SerializerMethodField()
+    total_products_stock = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -118,7 +118,7 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
         return stock["total_stock"]
 
     def get_total_products_stock(self, instance):
-        products = Product.objects.filter(similar_code=instance.similar_code)
+        products = Product.objects.filter(similar_code=instance.similar_code,is_parent=False)
         product_varient_count = products.count()
 
         total_stock = ProductAttribute.objects.filter(product__in=products).aggregate(total_stock=Sum("quantity"))
