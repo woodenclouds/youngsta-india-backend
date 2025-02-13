@@ -118,14 +118,14 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
         return stock["total_stock"]
 
     def get_total_products_stock(self, instance):
-        products = Product.objects.filter(similar_code=instance.similar_code,is_parent=False)
-        product_varient_count = products.count()
+        products = Product.objects.filter(parent=self, is_parent=False)  # Get child variants
+        product_variant_count = products.count()
 
         total_stock = ProductAttribute.objects.filter(product__in=products).aggregate(total_stock=Sum("quantity"))
 
         return {
             "total_stock": total_stock["total_stock"] or 0,  
-            "product_varient_count": product_varient_count,
+            "product_varient_count": product_variant_count,
         }
 
     def get_thumbnail(self, instance):
@@ -412,7 +412,6 @@ class ProductViewSerializer(serializers.ModelSerializer):
             "thumbnail",
             "images",
             "attribute",
-            "similar_code",
             "referal_Amount",
             "is_wishlist",
         )
@@ -585,7 +584,6 @@ class ProductSerializer(serializers.ModelSerializer):
     referal_amount = serializers.DecimalField(
         max_digits=10, decimal_places=2, required=True
     )
-    similar_code = serializers.CharField(required=False)
 
 
 class AttributeTypeSerializer(serializers.ModelSerializer):
@@ -611,12 +609,6 @@ class AttributeDescriptionSerializer(serializers.ModelSerializer):
         fields = ("id", "value")
 
 
-class ProductCodeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Product
-        fields = ("id", "similar_code", "name")
-
-
 class ProductWithCodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
@@ -625,14 +617,13 @@ class ProductWithCodeSerializer(serializers.ModelSerializer):
 
 class InventorySerializers(serializers.ModelSerializer):
     thumbnail = serializers.SerializerMethodField()
-    similar_code = serializers.SerializerMethodField()
     name = serializers.SerializerMethodField()
     attribute_detail = serializers.SerializerMethodField()
     stock = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductAttribute
-        fields = ("id","name","attribute_detail","thumbnail","stock","similar_code")
+        fields = ("id","name","attribute_detail","thumbnail","stock")
 
     def get_name(slef, instance):
         if instance.product:
@@ -641,10 +632,6 @@ class InventorySerializers(serializers.ModelSerializer):
     def get_stock(slef, instance):
         if instance:
             return instance.quantity
-        
-    def get_similar_code(slef, instance):
-        if instance.product:
-            return instance.product.similar_code
         
     def get_attribute_detail(self, instance):
         if instance.attribute_description:
