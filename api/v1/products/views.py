@@ -43,7 +43,8 @@ def admin_product(request):
                 | Q(sub_category__in=inner_sub_category_ids)
             )
 
-        query = query.order_by("name")
+        # query = query.order_by("name")
+        query = query.order_by("-created_at")
         paginator = Paginator(query, 10)
         page = request.GET.get("page")
 
@@ -99,6 +100,24 @@ def admin_product(request):
         }
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
+#admin_product_gallery
+@api_view(["GET"])
+@group_required(
+    [
+        "admin",
+    ]
+)
+def admin_product_gallery(request):
+    images = ProductGallery.objects.all().order_by("-created_at")
+    if images.exists():
+        serialized = ProductGallerySerializer(images, many=True, context={"request": request}).data
+
+        response_data = {"StatusCode": 6000, "data": serialized}
+    else:
+        response_data = {"StatusCode": 6001, "data": {"message": "images not found"}}
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
 @api_view(["GET"])
 @group_required(["admin"])
 def admin_similar_product(request, pk):
@@ -112,7 +131,7 @@ def admin_similar_product(request, pk):
         #    (Q(name__icontains=search) | Q(sub_category__name__icontains=search)) 
         # )
         if product.is_parent:
-            query = Product.objects.filter(parent=product)
+            query = Product.objects.filter(Q(pk=product.pk) | Q(parent=product))
         else:
             query = Product.objects.filter(parent=product.parent)
 
@@ -120,7 +139,7 @@ def admin_similar_product(request, pk):
         if search:
             query = query.filter(Q(name__icontains=search) | Q(sub_category__name__icontains=search))
 
-
+        query = query.order_by("-created_at")
 
         if category_id != "":
             category = Category.objects.get(pk=category_id)
@@ -1632,6 +1651,37 @@ def viewProduct(request):
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+@api_view(["GET"])
+@permission_classes((AllowAny,))
+def viewProducts(request):
+    try:
+        if Product.objects.all().exists():
+            product = Product.objects.all()
+            print("Product", product)
+            serialized = ProductsViewSerializer(
+                product, many=True, context={"request": request}
+            ).data
+            print("serialized",serialized)
+            response_data = {"StatusCode": 6000, "data": serialized}
+        else:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {"message": "Product does not exist with this pk"},
+            }
+
+    except Exception as e:
+        transaction.rollback()
+        errType = e.__class__.__name__
+        errors = {errType: traceback.format_exc()}
+        response_data = {
+            "status": 6001,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+            "response": errors,
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])

@@ -11,7 +11,7 @@ STAFF_TYPE = [
 
 USER_TYPE_CHOICES = [
     ('online', 'Signed Up Online'),
-    ('manual', 'Added Manually'),  # Changed to reflect manual addition
+    ('manual', 'Added Manually'), 
 ]
 
 
@@ -51,7 +51,7 @@ class UserProfile(BaseModel):
     first_name = models.CharField(max_length=155, blank=True, null=True)
     last_name = models.CharField(max_length=155, blank=True, null=True)
     email = models.EmailField(max_length=155, blank=True, null=True)
-    country_code = models.CharField(max_length=5)  # Adjust max_length as per your requirements
+    country_code = models.CharField(max_length=5, blank=True, null=True)  
     phone_number = models.CharField(max_length=15) 
     password = models.TextField(blank=True, null=True)
     user = models.OneToOneField("auth.User", on_delete=models.CASCADE)
@@ -92,6 +92,8 @@ class Address(BaseModel):
     phone = models.CharField(max_length = 155, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
     address = models.TextField(blank=True, null=True)
+    address_line_1 = models.TextField(blank=True, null=True)
+    address_line_2 = models.TextField(blank=True, null=True)
     street = models.CharField(max_length=100, blank=True, null=True)
     city = models.CharField(max_length=50, blank=True, null=True)
     state = models.CharField(max_length=50, blank=True, null=True)

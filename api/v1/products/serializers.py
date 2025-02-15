@@ -87,6 +87,7 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
         model = Product
         fields = (
             "id",
+            "parent",
             "name",
             "category",
             "category_id",
@@ -111,6 +112,7 @@ class ProductAdminViewSerializer(serializers.ModelSerializer):
             "published",
             "flash_sale",
             "total_products_stock",
+          
         )
 
     def get_stock(self, instance):
@@ -367,14 +369,14 @@ class EditAttributeSerializer(serializers.ModelSerializer):
 
 
 class ProductAttributeDescriptionSerializer(serializers.ModelSerializer):
+    attributeDescription_name = serializers.SerializerMethodField()
     value = serializers.SerializerMethodField()
     attributeDescription = serializers.SerializerMethodField()
-    attributeDescription_name = serializers.SerializerMethodField()
     attribute_type = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductAttribute
-        fields = ("id", "value", "quantity","attributeDescription","attributeDescription_name","attribute_type","sku","barcode","price")
+        fields = ("id", "attributeDescription_name", "value", "quantity","attributeDescription","attribute_type","sku","barcode","price")
 
     def get_value(self, instance):
         value = instance.attribute_description.value
@@ -396,18 +398,26 @@ class ProductImageSerializer(serializers.ModelSerializer):
         model = ProductImages
         fields = ("id", "image", "thumbnail")
 
+class ProductGallerySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductGallery
+        fields = ("id", "image_url", "image_name")
+
+
 
 class ProductViewSerializer(serializers.ModelSerializer):
     thumbnail = serializers.SerializerMethodField()
     attribute = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
     is_wishlist = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = (
             "id",
             "name",
+            "category",
             "description",
             "selling_price",
             "thumbnail",
@@ -423,6 +433,13 @@ class ProductViewSerializer(serializers.ModelSerializer):
             return image.image
         except ProductImages.DoesNotExist:
             return None  # Handle the case where no thumbnail is found
+
+    def get_category(self, instance):
+        if instance.sub_category and instance.sub_category.category:
+            category = instance.sub_category.category.name
+        else:
+            category = ""
+        return category
 
     def get_attribute(self, instance):
         attributes = ProductAttribute.objects.filter(product=instance, quantity__gt=0)
@@ -452,6 +469,35 @@ class ProductViewSerializer(serializers.ModelSerializer):
         else:
             return False
 
+class ProductsViewSerializer(serializers.ModelSerializer):
+    # thumbnail = serializers.SerializerMethodField()
+    attribute = serializers.SerializerMethodField()
+    # images = serializers.SerializerMethodField()
+    # is_wishlist = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = (
+            "id",
+            "name",
+            "attribute",
+
+            # "description",
+            # "selling_price",
+            # "thumbnail",
+            # "images",
+            # "referal_Amount",
+            # "is_wishlist",
+        )
+
+    def get_attribute(self, instance):
+        attributes = ProductAttribute.objects.filter(product=instance, quantity__gt=0)
+        
+        serialized = ProductAttributeDescriptionSerializer(
+            attributes,
+            many=True,
+        ).data
+        return serialized
 
 class SubCategorySerializer(serializers.ModelSerializer):
     children = serializers.SerializerMethodField()
@@ -682,3 +728,27 @@ class AttributeDescriptionViewSerializer(serializers.ModelSerializer):
             "id",
             "value",
         )
+
+class ProductAttributeNameSerializer(serializers.ModelSerializer):
+    product_name = serializers.SerializerMethodField()
+    attribute_description = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductAttribute
+        fields = (
+            'id',
+            'product_name',
+            'attribute_description',
+        )
+
+    def get_product_name(self, instance):
+        if instance.product.name:
+            product_name = instance.product.name
+            return product_name
+    
+    def get_attribute_description(self, instance):
+        if instance.attribute_description:
+            return {
+                "attribute_type":instance.attribute_description.attribute_type.name,
+                "value":instance.attribute_description.value
+            }

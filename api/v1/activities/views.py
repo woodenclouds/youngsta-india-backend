@@ -1434,135 +1434,104 @@ def user_orders(request):
 @api_view(["POST"])
 def admin_create_orders(request):
     try:
-        serialized_data = OrderSerializer(data=request.data)
-        if serialized_data.is_valid():
-            invoice_number = 0
-            # invoice_number = request.data["invoiceNumber"]
-            customer_name = request.data["customerName"]
-            address = request.data["deliveryAddress"]
-            billing_address = request.data["billingAddress"]
-            # post_code = request.data["post_code"]
-            # street = request.data["street"]
-            # city = request.data["city"]
-            # state = request.data["state"]
-            # country = request.data["country"]
-            email = request.data["email"]
-            phone = request.data["phone"]
-            # password = request.data["password"]
-            method = request.data["method"]
-            source = request.data["source"]
-            product_data = request.data.get('products', [])
+        transaction.set_autocommit(False)
+        serialized = OrderSerializer(data=request.data)
+        if serialized.is_valid():
+            customer = request.data["customer"]
+            products = request.data.get('products', [])
+            total = request.data["total"]
+            total_price=0
 
-            # if User.objects.filter(username=email).exists():
-            #     response_data = {
-            #         "StatusCode": 6001,
-            #         "data": {"message": "Email already exists."}
-            #     }
-            #     return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
-
-            source_obj= Sources.objects.get(id=source)
-
-            if email:
-                # email = request.data["email"]
-                # password = request.data["password"]
-                profile = None
-                user = None
+            if products:
+                customer_profile = UserProfile.objects.get(id=customer)
+                address = Address.objects.filter(user=customer_profile, primary=True).first()
                 
-                if User.objects.filter(username=email).exists():    
-                    user = User.objects.get(username=email)
-                    
-                    if UserProfile.objects.filter(user=user).exists():
-                        profile = UserProfile.objects.get(user=user)
-                else:
-                    user = User.objects.create_user(username=email, password=email)
-                    
-                if not profile:
-                    enc_password = encrypt(email)
+                if address:
+                    print("address",address)
 
-                    profile = UserProfile.objects.create(
-                        user=user,
-                        first_name=customer_name,
-                        email=email,
-                        password=enc_password,
-                        phone_number = phone,
-                        user_type = "manual",
+                    for item in products:
+                        product_id = item.get("product")
+                        quantity = Decimal(str(item.get("quantity", "1")))
+                        if ProductAttribute.objects.filter(pk=product_id).exists():
+                            product = ProductAttribute.objects.get(pk=product_id)
+                            amount = product.price * quantity
+                            total_price += amount
+
+                    purchase = Purchase.objects.create(
+                            user=customer_profile.user,
+                            total_amount=total_price,
+                            address = address,
+                            status= "Accepted",
+                            # invoice_no=invoice_no,
+                        )
+                        
+                    for item in products:
+                        print("item",item)
+                        product_id = item.get("product")
+                        if ProductAttribute.objects.filter(pk=product_id).exists():
+                            product = ProductAttribute.objects.get(pk=product_id)
+                            PurchaseItems.objects.create(
+                                purchase=purchase,
+                                product=product.product,
+                                quantity=item["quantity"],
+                                attribute= product,
+                                price=total_price,
+                             
+                            )
+                    PurchaseLog.objects.create(
+                        Purchases=purchase,
+                        log_status="Accepted"
                     )
-            
-                address = Address.objects.create(user=profile, 
-                    first_name=customer_name,
-                    address = address,
-                    # post_code=post_code,
-                    # street=street,
-                    # city=city,
-                    # state=state,
-                    # country=country,
-                    phone = phone,
+
+                    current_time = datetime.datetime.now().date()
+                    invoice = Invoice.objects.create(
+                        invoice_no = "",
+                        issued_at = current_time,
+                        customer_name = f"{customer_profile.first_name} {customer_profile.last_name}",
+                        total_amount = purchase.total_amount,
+                        purchase = purchase,
                     )
+                        
+                    # create transaction object
+                    transaction_data = Transaction.objects.create(
+                        user=customer_profile,
+                        amount= purchase.total_amount,
+                        success=True,
+                        credit=False,
+                        purchase=purchase,
+                        transaction_type="DEBIT",
+                        transaction_status="SUCCESS",
+                        transaction_id=purchase.pk,
 
-            # total_amount = 0
-            # for item in product_data:
-            #   total_amount += int(item.get('totalPrice', 0) or 0)
-
-            # if Invoice.objects.filter(invoice_no=invoice_number).exists():
-            #     response_data = {
-            #         "StatusCode": 6002,
-            #         "data": {"message": "Invoice number already exists."}                  }
-            #     return Response({"app_data": response_data}, status=status.HTTP_400_BAD_REQUEST)
-
-            purchase = Purchase.objects.create(
-                    user=user,
-                    total_amount = 0,
-                    invoice_no = invoice_number,
-                    status = "Accepted",
-                    address = address,
-                    method =method,
-                    source = source_obj,
-                )
-            
-            PurchaseLog.objects.create(
-                Purchases=purchase,
-                log_status="Accepted"
-            )
-            
-
-            for item_data in product_data:
-                product = Product.objects.get(id=item_data.get('productName'))
-
-                PurchaseItems.objects.create(
-                    purchase=purchase,
-                    product = product, 
-                    price=product.price,
-                    # attribute = item_data.get('product_attribute'),
-                    quantity = item_data.get('quantity'),
-                    # price = item_data.get('unitPrice'),                                  
-                )
-            total_amount = purchase.update_total_amount()
-            current_time = datetime.datetime.now().date()
-            invoice = Invoice.objects.create(
-                    invoice_no = invoice_number,
-                    issued_at = current_time,
-                    customer_name = customer_name,
-                    total_amount = total_amount,
-                    purchase = purchase,
-                )
-
-            # create transaction object
-            transaction = Transaction.objects.create(
-                user=profile,
-                amount=total_amount,
-                success=True,
-                credit=True,
-                purchase=purchase,
-                transaction_type=method,
-            )            
-           
-            response_data = {
-                "StatusCode": 6000,
-                "data": {"message": "Order added successfully"},
-            }
+                    )            
+                    transaction.commit()
+                    response_data = {
+                            "StatusCode": 6000,
+                            "data": {"message": "Order added successfully"},
+                        }
+                else :
+                    response_data = {
+                        "StatusCode": 6001,
+                        "data": {
+                                "message": "No address added"
+                        },
+                    }
+            else :
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": {
+                            "message": "No products added"
+                    },
+                }
         else:
-            response_data = {"StatusCode": 6001, "data": serialized_data.errors}
-
+            # Handle validation errors
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "Failed",
+                    "errors": generate_serializer_errors(serialized.errors),
+                },
+            }
     except Exception as e:
         transaction.rollback()
         errType = e.__class__.__name__
@@ -1573,6 +1542,87 @@ def admin_create_orders(request):
             "request": request.data,
             "message": str(e),
             "response": errors,
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+#admin_calculate_price
+@api_view(["POST"])
+def admin_product_price(request):
+    try:
+        product_attribute = request.data["product"]
+        quantity = request.data["quantity"]
+        if ProductAttribute.objects.filter(pk=product_attribute).exists():
+            product = ProductAttribute.objects.get(pk=product_attribute)
+            print("product",product)
+            total_amount = product.price * quantity
+            response_data = {"StatusCode": 6000, "amount": product.price,"total_amount":total_amount}
+        else:
+            response_data = {"StatusCode": 6001, "data": {"message": "not exists"}}
+    except Exception as e:
+        error_message = str(e)
+        response_data = {
+            "status": "error",
+            "message": f"Error fetching new arrivals: {error_message}",
+        }
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+def admin_order_price(request):
+    try:
+        products = request.data.get("products", [])
+        subtotal = 0
+        total = 0
+        if not products:
+            response_data = {
+                "StatusCode": 6001,
+                "data": {
+                    "message": "No products added"
+                },
+            }
+        product_details = []
+        for item in products:
+            product_id = item.get("product")
+            quantity = Decimal(str(item.get("quantity", "1")))
+
+            if ProductAttribute.objects.filter(pk=product_id).exists():
+                product = ProductAttribute.objects.get(pk=product_id)
+                total_amount = product.price * quantity
+                total += total_amount
+
+                product_details.append({
+                        "product_id": product_id,
+                        "price": product.price,
+                        "quantity": quantity,
+                        "total_amount": total_amount,
+                    })
+            else:
+                response_data = {
+                    "StatusCode": 6001,
+                    "data": {
+                        "message": "Products does not exists"
+                    },
+                }
+        if total > 0:
+            subtotal = (total * Decimal("0.95")).quantize(Decimal("0.01")) 
+            tax = (total * Decimal("0.05")).quantize(Decimal("0.01"))   
+        else:
+            subtotal = 0
+            tax = 0
+
+        response_data = {
+            "StatusCode": 6000,
+            "tax": tax,
+            "subtotal":subtotal,
+            "total": total,
+            # "products": product_details,
+        }
+                    
+    except Exception as e:
+        error_message = str(e)
+        response_data = {
+            "status": "error",
+            "message": f"Error calculating order price: {error_message}",
         }
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 

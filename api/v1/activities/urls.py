@@ -80,6 +80,8 @@ urlpatterns = [
 
     re_path(r"^sources-list/$", views.order_source_list, name="order-sources-list"),
     re_path(r"^admin-create-orders/$", views.admin_create_orders, name="admin-create-orders"),
+    re_path(r"^admin-product-price/$", views.admin_product_price, name="admin-product-price"),
+    re_path(r"^admin-order-price/$", views.admin_order_price, name="admin-order-price"),
     re_path(r'^download-invoice/(?P<pk>.*)/$', views.download_invoice, name="download-invoice"),
     
     # financial years

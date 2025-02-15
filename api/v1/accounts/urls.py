@@ -41,4 +41,6 @@ urlpatterns = [
     ),
     re_path(r"^admin/change-password/$", views.change_password, name="change_password"),
     re_path(r"^admin/costomers/$", views.costemers, name="admin_costomers"),
+    re_path(r"^admin/list-costomers/$", views.list_costemers, name="admin_list_costomers"),
+    re_path(r"^admin/create-costomer/$", views.create_costemer, name="admin_create_costomer"),
 ]

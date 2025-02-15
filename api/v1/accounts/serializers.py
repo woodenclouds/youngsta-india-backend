@@ -44,7 +44,15 @@ class ViewCostomerSerializer(serializers.ModelSerializer):
             'phone_number',
 
         )
-    
+
+class ViewCostomerNameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = (
+            'id',
+            'first_name',
+            'last_name',
+        )
     
 # class AddressSerializer(serializers.Serializer):
 #     first_name = serializers.CharField()

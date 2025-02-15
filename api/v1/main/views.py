@@ -7,6 +7,8 @@ from rest_framework.views import APIView
 from .serializers import FileSerializer 
 from rest_framework.permissions import AllowAny
 import boto3
+from products.models import *
+
 class FileUploadView(APIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
@@ -22,6 +24,12 @@ class FileUploadView(APIView):
 
                 # Optionally, you can get the S3 URL for the uploaded file
                 s3_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{file_obj_name}"
+
+                product_gallery_entry = ProductGallery.objects.create(
+                    image_name=file_obj_name,
+                    image_url=s3_url
+                )
+                print("Product gallery entry",file_obj_name,s3_url)
 
                 # Return the S3 URL or any other data as needed
                 return Response({'url': s3_url}, status=status.HTTP_201_CREATED)

@@ -483,6 +483,48 @@ def costemers(request):
     return Response({"app_data": response_data}, status=status.HTTP_200_OK)
 
 
+@api_view(["GET"])
+@group_required(["admin"])
+def list_costemers(request):
+    try:
+        search = request.GET.get("search")
+        instances = UserProfile.objects.all().order_by("-created_at")
+        if instances:
+            if search:
+                instances = instances.filter(
+                    Q(first_name__icontains=search) | Q(last_name__icontains=search) | Q(email__icontains=search) | Q(phone_number__icontains = search)
+                )
+
+            serialized = ViewCostomerNameSerializer(
+                instances, many=True, context={"request": request}
+            ).data
+            response_data = {
+                "StatusCode": 6000,
+                "data": serialized,
+            }
+        else:
+            response_data = {
+                "status": 6001,
+                "data": {
+                    "message": "Users not found"
+                    },
+            }
+    except Exception as e:
+        print("helloworld")
+        response_data = {
+            "status": 0,
+            "api": request.get_full_path(),
+            "request": request.data,
+            "message": str(e),
+        }
+        return Response(
+            {"app_data": response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    return Response({"app_data": response_data}, status=status.HTTP_200_OK)
+
+
+
 # -------add adressses api-------
 
 
@@ -1029,3 +1071,83 @@ def change_password(request):
         return Response(
             {"app_data": response_data}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(["POST"])
+@permission_classes((AllowAny,))
+def create_costemer(request):
+    try:
+        serializer = UserProfileSerializer(data=request.data)
+        if serializer.is_valid():
+            first_name = serializer.validated_data.get("first_name")
+            last_name = serializer.validated_data.get("last_name")
+            email = serializer.validated_data.get("email")
+            phone = serializer.validated_data.get("phone_number")
+
+            address_line_1 = request.data.get("address_line_1", "")
+            address_line_2 = request.data.get("address_line_2", "")
+            city = request.data.get("city", "")
+            state = request.data.get("state", "")
+            post_code = request.data.get("post_code", "")
+
+            if not UserProfile.objects.filter(email=email).exists():
+                if len(phone) != 10:
+                    return Response({
+                        "StatusCode": 6001,
+                        "data": {"message": "Phone number must be 10 digits"},
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                password = generate_secure_password(8) 
+                user = User.objects.create_user(username=email, password=password)
+                enc_password = encrypt(password)
+                referral_code = generate_referral_code()
+                profile = UserProfile.objects.create(
+                    user=user,
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=email,
+                    password=enc_password,
+                    refferal_code=referral_code,
+                    phone_number=phone
+                )
+                Cart.objects.create(user=user)
+                Wallet.objects.create(user=profile)
+
+                Address.objects.create(
+                    user=profile,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone,
+                    email=email,
+                    address_line_1=address_line_1,
+                    address_line_2=address_line_2,
+                    city=city,
+                    state=state,
+                    post_code=post_code,
+                    primary=True
+                )
+                
+                send_password_email(email, password)
+                
+                transaction.commit()
+                return Response({
+                    "StatusCode": 6000,
+                    "data": {"message": "Customer added successfully. Password sent via email."},
+                }, status=status.HTTP_201_CREATED)
+            else:
+                return Response({
+                    "StatusCode": 6001,
+                    "data": {"message": "Customer with this email already exists"},
+                }, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({
+                "StatusCode": 6001,
+                "data": generate_serializer_errors(serializer.errors),
+            }, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        transaction.rollback()
+        return Response({
+            "StatusCode": 5000,
+            "message": str(e),
+            "error_details": traceback.format_exc(),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

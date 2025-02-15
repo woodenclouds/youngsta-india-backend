@@ -158,7 +158,7 @@ class Product(models.Model):
         "SubCategory", on_delete=models.CASCADE, blank=True, null=True
     )
     product_sku = models.CharField(max_length=50, blank=True, null=True)
-    return_in = models.IntegerField()  # Fix the typo here
+    return_in = models.IntegerField()  
     actual_price = models.DecimalField(
         max_digits=10, decimal_places=2, blank=True, null=True
     )
@@ -203,6 +203,16 @@ class Product(models.Model):
     #         generated_code = "".join(random.choice(characters) for _ in range(8))
     #     return generated_code
 
+
+class ProductGallery(BaseModel):
+    image_name = models.CharField(max_length=155, blank=True, null=True)
+    image_url = models.TextField()
+
+    class Meta:
+        db_table = "product_gallery"
+        managed = True
+        verbose_name = "Product gallery"
+        verbose_name_plural = "Product gallery"
 
 class ProductImages(BaseModel):
     product = models.ForeignKey(
